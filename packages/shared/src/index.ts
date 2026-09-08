@@ -37,3 +37,13 @@ export type AuthResponse = {
   accessToken: string;
   user: AuthUser;
 };
+
+/** Public project shape returned by project endpoints. */
+export type Project = {
+  id: string;
+  userId: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+};

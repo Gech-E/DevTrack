@@ -117,6 +117,18 @@ curl http://localhost:3001/api/v1/auth/me \
   -H "Authorization: Bearer <accessToken>"
 ```
 
+### Projects API (`/api/v1`) — all require Bearer JWT
+
+| Method   | Path                   | Description                  |
+| -------- | ---------------------- | ---------------------------- |
+| `GET`    | `/api/v1/projects`     | List current user's projects |
+| `GET`    | `/api/v1/projects/:id` | Get one owned project        |
+| `POST`   | `/api/v1/projects`     | Create project               |
+| `PATCH`  | `/api/v1/projects/:id` | Update owned project         |
+| `DELETE` | `/api/v1/projects/:id` | Delete owned project (`204`) |
+
+Projects are always scoped to the authenticated user. Another user's id returns `404` (not `403`) to avoid leaking existence.
+
 ## Start the frontend
 
 ```bash
@@ -141,5 +153,5 @@ pnpm --filter @devtrack/api test
 
 ## Current phase
 
-**Phase 3 — JWT authentication.**  
-Register, login, and protected `/auth/me` are implemented. Projects/tasks APIs come next.
+**Phase 4 — Projects CRUD.**  
+Authenticated users can create, list, update, and delete their own projects. Tasks API comes next.
