@@ -15,7 +15,10 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
-    "db:logs": "docker compose logs -f postgres"
+    "db:logs": "docker compose logs -f postgres",
+    "db:migrate": "pnpm --filter @devtrack/api prisma:migrate",
+    "db:seed": "pnpm --filter @devtrack/api prisma:seed",
+    "db:studio": "pnpm --filter @devtrack/api prisma:studio"
   },
   "devDependencies": {
     "prettier": "^3.5.3",
