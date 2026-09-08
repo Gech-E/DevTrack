@@ -31,3 +31,13 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+select {
+  color: var(--foreground);
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+select option {
+  color: #0f1419;
+  background: #e8eef4;
+}

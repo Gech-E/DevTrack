@@ -6,7 +6,7 @@ This repository is a **pnpm monorepo** with a Next.js frontend (`apps/web`) and 
 
 ## Stack
 
-- Next.js + TypeScript + Tailwind CSS (+ shadcn/ui later)
+- Next.js + TypeScript + Tailwind CSS + shadcn-style UI primitives
 - NestJS + PostgreSQL + Prisma
 - JWT authentication
 - Jest (API unit tests); React Testing Library & Playwright later
@@ -153,6 +153,11 @@ pnpm dev:web
 
 Open [http://localhost:3000](http://localhost:3000)
 
+- `/login` — sign in (seed: `demo@devtrack.local` / `password123`)
+- `/register` — create account
+- `/projects` — list/create/delete projects
+- `/projects/:id` — manage tasks
+
 ## Tests
 
 ```bash
@@ -169,5 +174,5 @@ pnpm --filter @devtrack/api test
 
 ## Current phase
 
-**Phase 5 — Tasks CRUD.**  
-Authenticated users manage tasks inside their own projects. Frontend wiring + shadcn comes next.
+**Phase 6 — Frontend wiring + shadcn-style UI.**  
+Auth, projects, and tasks are connected to the Nest API. Broader automated tests and CI come next.

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
-
 import { APP_NAME } from '@devtrack/shared';
+
+import { Providers } from '@/components/providers';
 
 import './globals.css';
 
@@ -16,7 +17,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
