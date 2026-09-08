@@ -129,6 +129,22 @@ curl http://localhost:3001/api/v1/auth/me \
 
 Projects are always scoped to the authenticated user. Another user's id returns `404` (not `403`) to avoid leaking existence.
 
+### Tasks API (`/api/v1`) — all require Bearer JWT
+
+Nested under a project. The project must belong to the current user.
+
+| Method   | Path                                        | Description                    |
+| -------- | ------------------------------------------- | ------------------------------ |
+| `GET`    | `/api/v1/projects/:projectId/tasks`         | List tasks in an owned project |
+| `GET`    | `/api/v1/projects/:projectId/tasks/:taskId` | Get one task                   |
+| `POST`   | `/api/v1/projects/:projectId/tasks`         | Create task                    |
+| `PATCH`  | `/api/v1/projects/:projectId/tasks/:taskId` | Update task                    |
+| `DELETE` | `/api/v1/projects/:projectId/tasks/:taskId` | Delete task (`204`)            |
+
+`status`: `TODO` \| `IN_PROGRESS` \| `DONE`  
+`priority`: `LOW` \| `MEDIUM` \| `HIGH`  
+`dueDate`: optional ISO date string (send `null` on update to clear)
+
 ## Start the frontend
 
 ```bash
@@ -153,5 +169,5 @@ pnpm --filter @devtrack/api test
 
 ## Current phase
 
-**Phase 4 — Projects CRUD.**  
-Authenticated users can create, list, update, and delete their own projects. Tasks API comes next.
+**Phase 5 — Tasks CRUD.**  
+Authenticated users manage tasks inside their own projects. Frontend wiring + shadcn comes next.

@@ -47,3 +47,16 @@ export type Project = {
   createdAt: string;
   updatedAt: string;
 };
+
+/** Public task shape returned by task endpoints. */
+export type Task = {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  dueDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
