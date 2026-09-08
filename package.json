@@ -1,0 +1,24 @@
+{
+  "name": "devtrack",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:web": "pnpm --filter @devtrack/shared build && pnpm --filter @devtrack/web dev",
+    "dev:api": "pnpm --filter @devtrack/shared build && pnpm --filter @devtrack/api start:dev",
+    "build": "pnpm --filter @devtrack/shared build && pnpm --filter @devtrack/api build && pnpm --filter @devtrack/web build",
+    "lint": "pnpm -r --if-present lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css}\"",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f postgres"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2"
+  }
+}

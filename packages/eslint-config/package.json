@@ -1,0 +1,20 @@
+{
+  "name": "@devtrack/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./base": "./base.js",
+    "./next": "./next.js",
+    "./nest": "./nest.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.22.0",
+    "eslint-config-prettier": "^10.1.1",
+    "globals": "^16.0.0",
+    "typescript-eslint": "^8.26.1"
+  },
+  "peerDependencies": {
+    "eslint": "^9.0.0"
+  }
+}

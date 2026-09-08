@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: devtrack-postgres
+    restart: unless-stopped
+    ports:
+      - '55432:5432'
+    environment:
+      POSTGRES_USER: devtrack
+      POSTGRES_PASSWORD: devtrack
+      POSTGRES_DB: devtrack
+    volumes:
+      - devtrack_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U devtrack -d devtrack']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  devtrack_pg_data:
