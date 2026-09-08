@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Application user. Auth (JWT) is added in a later phase; passwordHash is stored now.
+/// Application user. Password is stored hashed; JWT auth issues access tokens.
 model User {
   id           String    @id @default(cuid())
   email        String    @unique

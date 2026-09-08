@@ -24,3 +24,16 @@ export const TaskPriority = {
 } as const;
 
 export type TaskPriority = (typeof TaskPriority)[keyof typeof TaskPriority];
+
+/** Public user shape returned by auth endpoints (never includes password). */
+export type AuthUser = {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: string;
+};
+
+export type AuthResponse = {
+  accessToken: string;
+  user: AuthUser;
+};

@@ -8,8 +8,8 @@ This repository is a **pnpm monorepo** with a Next.js frontend (`apps/web`) and 
 
 - Next.js + TypeScript + Tailwind CSS (+ shadcn/ui later)
 - NestJS + PostgreSQL + Prisma
-- JWT auth (later)
-- Jest, React Testing Library, Playwright (later)
+- JWT authentication
+- Jest (API unit tests); React Testing Library & Playwright later
 - Docker Compose (PostgreSQL)
 - pnpm workspaces
 
@@ -94,6 +94,29 @@ pnpm dev:api
 Health check: [http://localhost:3001/health](http://localhost:3001/health)  
 Expect `database: "up"` when Postgres is reachable.
 
+### Auth API (`/api/v1`)
+
+| Method | Path                    | Auth       | Description                              |
+| ------ | ----------------------- | ---------- | ---------------------------------------- |
+| `POST` | `/api/v1/auth/register` | No         | Create account → `{ accessToken, user }` |
+| `POST` | `/api/v1/auth/login`    | No         | Login → `{ accessToken, user }`          |
+| `GET`  | `/api/v1/auth/me`       | Bearer JWT | Current user profile                     |
+
+Example login:
+
+```bash
+curl -X POST http://localhost:3001/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"demo@devtrack.local\",\"password\":\"password123\"}"
+```
+
+Example profile:
+
+```bash
+curl http://localhost:3001/api/v1/auth/me \
+  -H "Authorization: Bearer <accessToken>"
+```
+
 ## Start the frontend
 
 ```bash
@@ -101,6 +124,12 @@ pnpm dev:web
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
+
+## Tests
+
+```bash
+pnpm --filter @devtrack/api test
+```
 
 ## Other scripts
 
@@ -112,5 +141,5 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ## Current phase
 
-**Phase 2 — database design with Prisma.**  
-Schema, migrations, Nest `PrismaService`, and seed data are in place. Auth and business APIs come next.
+**Phase 3 — JWT authentication.**  
+Register, login, and protected `/auth/me` are implemented. Projects/tasks APIs come next.
