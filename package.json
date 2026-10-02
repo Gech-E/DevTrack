@@ -13,6 +13,9 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css}\"",
     "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm --filter @devtrack/api test && pnpm --filter @devtrack/web test",
+    "test:e2e:api": "pnpm --filter @devtrack/api test:e2e",
+    "test:e2e": "playwright test",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:logs": "docker compose logs -f postgres",
@@ -21,6 +24,7 @@
     "db:studio": "pnpm --filter @devtrack/api prisma:studio"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "prettier": "^3.5.3",
     "typescript": "^5.8.2"
   }
