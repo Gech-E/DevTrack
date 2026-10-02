@@ -9,8 +9,10 @@ This repository is a **pnpm monorepo** with a Next.js frontend (`apps/web`) and 
 - Next.js + TypeScript + Tailwind CSS + shadcn-style UI primitives
 - NestJS + PostgreSQL + Prisma
 - JWT authentication
-- Jest (API unit tests); React Testing Library & Playwright later
+- Jest (API unit + integration, web RTL)
+- Playwright (browser e2e)
 - Docker Compose (PostgreSQL)
+- GitHub Actions CI
 - pnpm workspaces
 
 ## Repository structure
@@ -24,6 +26,8 @@ DevTrack/
 │   ├── shared/       # Shared types/constants (framework-free)
 │   ├── eslint-config/
 │   └── tsconfig/
+├── e2e/              # Playwright browser tests
+├── .github/workflows/
 ├── docker-compose.yml
 └── package.json
 ```
@@ -33,6 +37,7 @@ DevTrack/
 - Node.js 20+
 - pnpm 9+ (`corepack enable` then `corepack prepare pnpm@9.15.0 --activate`)
 - Docker Desktop (for PostgreSQL)
+- Playwright browsers once: `pnpm exec playwright install chromium`
 
 ## Setup
 
@@ -102,22 +107,7 @@ Expect `database: "up"` when Postgres is reachable.
 | `POST` | `/api/v1/auth/login`    | No         | Login → `{ accessToken, user }`          |
 | `GET`  | `/api/v1/auth/me`       | Bearer JWT | Current user profile                     |
 
-Example login:
-
-```bash
-curl -X POST http://localhost:3001/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d "{\"email\":\"demo@devtrack.local\",\"password\":\"password123\"}"
-```
-
-Example profile:
-
-```bash
-curl http://localhost:3001/api/v1/auth/me \
-  -H "Authorization: Bearer <accessToken>"
-```
-
-### Projects API (`/api/v1`) — all require Bearer JWT
+### Projects API — all require Bearer JWT
 
 | Method   | Path                   | Description                  |
 | -------- | ---------------------- | ---------------------------- |
@@ -127,23 +117,18 @@ curl http://localhost:3001/api/v1/auth/me \
 | `PATCH`  | `/api/v1/projects/:id` | Update owned project         |
 | `DELETE` | `/api/v1/projects/:id` | Delete owned project (`204`) |
 
-Projects are always scoped to the authenticated user. Another user's id returns `404` (not `403`) to avoid leaking existence.
+### Tasks API — all require Bearer JWT
 
-### Tasks API (`/api/v1`) — all require Bearer JWT
-
-Nested under a project. The project must belong to the current user.
-
-| Method   | Path                                        | Description                    |
-| -------- | ------------------------------------------- | ------------------------------ |
-| `GET`    | `/api/v1/projects/:projectId/tasks`         | List tasks in an owned project |
-| `GET`    | `/api/v1/projects/:projectId/tasks/:taskId` | Get one task                   |
-| `POST`   | `/api/v1/projects/:projectId/tasks`         | Create task                    |
-| `PATCH`  | `/api/v1/projects/:projectId/tasks/:taskId` | Update task                    |
-| `DELETE` | `/api/v1/projects/:projectId/tasks/:taskId` | Delete task (`204`)            |
+| Method   | Path                                        | Description         |
+| -------- | ------------------------------------------- | ------------------- |
+| `GET`    | `/api/v1/projects/:projectId/tasks`         | List tasks          |
+| `GET`    | `/api/v1/projects/:projectId/tasks/:taskId` | Get one task        |
+| `POST`   | `/api/v1/projects/:projectId/tasks`         | Create task         |
+| `PATCH`  | `/api/v1/projects/:projectId/tasks/:taskId` | Update task         |
+| `DELETE` | `/api/v1/projects/:projectId/tasks/:taskId` | Delete task (`204`) |
 
 `status`: `TODO` \| `IN_PROGRESS` \| `DONE`  
-`priority`: `LOW` \| `MEDIUM` \| `HIGH`  
-`dueDate`: optional ISO date string (send `null` on update to clear)
+`priority`: `LOW` \| `MEDIUM` \| `HIGH`
 
 ## Start the frontend
 
@@ -161,18 +146,37 @@ Open [http://localhost:3000](http://localhost:3000)
 ## Tests
 
 ```bash
-pnpm --filter @devtrack/api test
+# Unit tests (API services + web LoginForm)
+pnpm test
+
+# API integration (needs Postgres up + migrated/seeded)
+pnpm test:e2e:api
+
+# Browser e2e (starts API + web if not already running)
+pnpm exec playwright install chromium   # once
+pnpm test:e2e
 ```
+
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) on `push`/`pull_request` to `main`:
+
+1. Start Postgres service
+2. Install, migrate, seed
+3. Lint, typecheck, unit tests
+4. API e2e
+5. Build apps
+6. Playwright Chromium e2e
 
 ## Other scripts
 
-| Script           | Description                                      |
-| ---------------- | ------------------------------------------------ |
-| `pnpm lint`      | Lint all packages/apps that define a lint script |
-| `pnpm format`    | Format with Prettier                             |
-| `pnpm typecheck` | TypeScript checks across the workspace           |
+| Script           | Description              |
+| ---------------- | ------------------------ |
+| `pnpm lint`      | Lint workspace packages  |
+| `pnpm format`    | Format with Prettier     |
+| `pnpm typecheck` | TypeScript checks        |
+| `pnpm build`     | Build shared + api + web |
 
 ## Current phase
 
-**Phase 6 — Frontend wiring + shadcn-style UI.**  
-Auth, projects, and tasks are connected to the Nest API. Broader automated tests and CI come next.
+**Phases 1–8 complete** — monorepo, database, JWT auth, projects/tasks APIs, web UI, automated tests, and CI.

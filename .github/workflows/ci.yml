@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: devtrack
+          POSTGRES_PASSWORD: devtrack
+          POSTGRES_DB: devtrack
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U devtrack -d devtrack"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://devtrack:devtrack@localhost:5432/devtrack?schema=public
+      JWT_SECRET: ci-test-secret
+      API_PORT: 3001
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @devtrack/api exec prisma generate
+
+      - name: Apply migrations
+        run: pnpm --filter @devtrack/api exec prisma migrate deploy
+
+      - name: Seed database
+        run: pnpm --filter @devtrack/api prisma:seed
+
+      - name: Build shared package
+        run: pnpm --filter @devtrack/shared build
+
+      - name: Write API env for Nest ConfigModule
+        run: |
+          cat > apps/api/.env <<EOF
+          DATABASE_URL=${{ env.DATABASE_URL }}
+          JWT_SECRET=${{ env.JWT_SECRET }}
+          API_PORT=3001
+          EOF
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: API e2e tests
+        run: pnpm test:e2e:api
+        env:
+          DATABASE_URL: postgresql://devtrack:devtrack@localhost:5432/devtrack?schema=public
+          JWT_SECRET: ci-test-secret
+
+      - name: Build apps
+        run: pnpm build
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Playwright e2e
+        run: pnpm test:e2e
+        env:
+          DATABASE_URL: postgresql://devtrack:devtrack@localhost:5432/devtrack?schema=public
+          JWT_SECRET: ci-test-secret
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+          CI: true
