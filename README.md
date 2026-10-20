@@ -8,10 +8,10 @@ This repository is a **pnpm monorepo** with a Next.js frontend (`apps/web`) and 
 
 - Next.js + TypeScript + Tailwind CSS + shadcn-style UI primitives
 - NestJS + PostgreSQL + Prisma
-- JWT authentication
+- JWT access tokens + rotating refresh tokens
 - Jest (API unit + integration, web RTL)
 - Playwright (browser e2e)
-- Docker Compose (PostgreSQL)
+- Docker Compose (Postgres locally; full stack via profile)
 - GitHub Actions CI
 - pnpm workspaces
 
@@ -28,6 +28,7 @@ DevTrack/
 │   └── tsconfig/
 ├── e2e/              # Playwright browser tests
 ├── .github/workflows/
+├── Dockerfile        # Multi-stage api + web images
 ├── docker-compose.yml
 └── package.json
 ```
@@ -36,7 +37,7 @@ DevTrack/
 
 - Node.js 20+
 - pnpm 9+ (`corepack enable` then `corepack prepare pnpm@9.15.0 --activate`)
-- Docker Desktop (for PostgreSQL)
+- Docker Desktop
 - Playwright browsers once: `pnpm exec playwright install chromium`
 
 ## Setup
@@ -53,130 +54,91 @@ pnpm db:migrate
 pnpm db:seed
 ```
 
-`pnpm db:migrate` creates/applies Prisma migrations. On first run, when prompted for a migration name, use something like `init`.
-
-## Start PostgreSQL
+## Start PostgreSQL (local)
 
 ```bash
 pnpm db:up
-# or: docker compose up -d
 ```
 
-Check health:
+> Host `DATABASE_URL` uses `localhost:55432`. Inside Compose, use host `postgres:5432`.
+
+## Start API / web (local)
 
 ```bash
-docker compose ps
+pnpm dev:api   # http://localhost:3001/health
+pnpm dev:web   # http://localhost:3000
 ```
 
-Stop:
+Routes: `/login`, `/register`, `/projects`, `/projects/:id`, `/goals`
+
+Seed user: `demo@devtrack.local` / `password123`
+
+## Auth
+
+| Method | Path                    | Description                           |
+| ------ | ----------------------- | ------------------------------------- |
+| `POST` | `/api/v1/auth/register` | `{ accessToken, refreshToken, user }` |
+| `POST` | `/api/v1/auth/login`    | same                                  |
+| `POST` | `/api/v1/auth/refresh`  | rotate refresh → new token pair       |
+| `POST` | `/api/v1/auth/logout`   | revoke refresh token (`204`)          |
+| `GET`  | `/api/v1/auth/me`       | Bearer access token                   |
+
+Access JWTs expire in **15 minutes**. Refresh tokens last **7 days**, are stored hashed, and rotate on each refresh.
+
+## Projects / tasks / goals
+
+All require Bearer JWT and are scoped to the authenticated user (foreign ids → `404`).
+
+| Resource       | Base path                           |
+| -------------- | ----------------------------------- |
+| Projects       | `/api/v1/projects`                  |
+| Tasks          | `/api/v1/projects/:projectId/tasks` |
+| Learning goals | `/api/v1/goals`                     |
+
+Goal status: `NOT_STARTED` \| `ACTIVE` \| `COMPLETED`
+
+## Deploy with Docker
 
 ```bash
-pnpm db:down
+# Build and run postgres + api + web
+pnpm deploy:up
+
+# Stop app profile (keeps volumes)
+pnpm deploy:down
 ```
 
-> From the host machine, use `localhost:55432` in `DATABASE_URL` (Compose maps host `55432` → container `5432` to avoid clashing with other local Postgres instances).  
-> If an app later runs _inside_ Compose, use hostname `postgres` and port `5432` instead.
-
-## Database commands
-
-| Script            | Description                                    |
-| ----------------- | ---------------------------------------------- |
-| `pnpm db:migrate` | Create/apply migrations (`prisma migrate dev`) |
-| `pnpm db:seed`    | Seed demo user, project, and tasks             |
-| `pnpm db:studio`  | Open Prisma Studio                             |
-
-**Seed credentials (local only):**
-
-- Email: `demo@devtrack.local`
-- Password: `password123`
-
-## Start the API
+Set secrets in `.env` before deploying:
 
 ```bash
-pnpm dev:api
+JWT_SECRET=use-a-long-random-string
+CORS_ORIGINS=https://your-frontend.example
+NEXT_PUBLIC_API_URL=https://your-api.example
 ```
 
-Health check: [http://localhost:3001/health](http://localhost:3001/health)  
-Expect `database: "up"` when Postgres is reachable.
-
-### Auth API (`/api/v1`)
-
-| Method | Path                    | Auth       | Description                              |
-| ------ | ----------------------- | ---------- | ---------------------------------------- |
-| `POST` | `/api/v1/auth/register` | No         | Create account → `{ accessToken, user }` |
-| `POST` | `/api/v1/auth/login`    | No         | Login → `{ accessToken, user }`          |
-| `GET`  | `/api/v1/auth/me`       | Bearer JWT | Current user profile                     |
-
-### Projects API — all require Bearer JWT
-
-| Method   | Path                   | Description                  |
-| -------- | ---------------------- | ---------------------------- |
-| `GET`    | `/api/v1/projects`     | List current user's projects |
-| `GET`    | `/api/v1/projects/:id` | Get one owned project        |
-| `POST`   | `/api/v1/projects`     | Create project               |
-| `PATCH`  | `/api/v1/projects/:id` | Update owned project         |
-| `DELETE` | `/api/v1/projects/:id` | Delete owned project (`204`) |
-
-### Tasks API — all require Bearer JWT
-
-| Method   | Path                                        | Description         |
-| -------- | ------------------------------------------- | ------------------- |
-| `GET`    | `/api/v1/projects/:projectId/tasks`         | List tasks          |
-| `GET`    | `/api/v1/projects/:projectId/tasks/:taskId` | Get one task        |
-| `POST`   | `/api/v1/projects/:projectId/tasks`         | Create task         |
-| `PATCH`  | `/api/v1/projects/:projectId/tasks/:taskId` | Update task         |
-| `DELETE` | `/api/v1/projects/:projectId/tasks/:taskId` | Delete task (`204`) |
-
-`status`: `TODO` \| `IN_PROGRESS` \| `DONE`  
-`priority`: `LOW` \| `MEDIUM` \| `HIGH`
-
-## Start the frontend
-
-```bash
-pnpm dev:web
-```
-
-Open [http://localhost:3000](http://localhost:3000)
-
-- `/login` — sign in (seed: `demo@devtrack.local` / `password123`)
-- `/register` — create account
-- `/projects` — list/create/delete projects
-- `/projects/:id` — manage tasks
+- API image runs `prisma migrate deploy` on start
+- Web image bakes `NEXT_PUBLIC_API_URL` at build time
+- Default local URLs: web `http://localhost:3000`, api `http://localhost:3001`
 
 ## Tests
 
 ```bash
-# Unit tests (API services + web LoginForm)
 pnpm test
-
-# API integration (needs Postgres up + migrated/seeded)
 pnpm test:e2e:api
-
-# Browser e2e (starts API + web if not already running)
-pnpm exec playwright install chromium   # once
 pnpm test:e2e
 ```
 
 ## CI
 
-GitHub Actions (`.github/workflows/ci.yml`) on `push`/`pull_request` to `main`:
+GitHub Actions on `push`/`pull_request` to `main`: migrate, lint, typecheck, unit tests, API e2e, build, Playwright.
 
-1. Start Postgres service
-2. Install, migrate, seed
-3. Lint, typecheck, unit tests
-4. API e2e
-5. Build apps
-6. Playwright Chromium e2e
+## Scripts
 
-## Other scripts
+| Script                              | Description                  |
+| ----------------------------------- | ---------------------------- |
+| `pnpm db:up`                        | Postgres only                |
+| `pnpm deploy:up`                    | Full stack (`--profile app`) |
+| `pnpm lint` / `typecheck` / `build` | Quality gates                |
 
-| Script           | Description              |
-| ---------------- | ------------------------ |
-| `pnpm lint`      | Lint workspace packages  |
-| `pnpm format`    | Format with Prettier     |
-| `pnpm typecheck` | TypeScript checks        |
-| `pnpm build`     | Build shared + api + web |
+## Status
 
-## Current phase
-
-**Phases 1–8 complete** — monorepo, database, JWT auth, projects/tasks APIs, web UI, automated tests, and CI.
+Beyond the original roadmap: **refresh tokens**, **learning goals**, **UI polish**, and **Docker deploy**.

@@ -4,6 +4,17 @@ import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from './app.module';
 
+function resolveCorsOrigins(raw: string | undefined): string[] {
+  const fallback = ['http://localhost:3000', 'http://localhost:3101'];
+  if (!raw?.trim()) {
+    return fallback;
+  }
+  return raw
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
@@ -22,7 +33,7 @@ async function bootstrap(): Promise<void> {
   );
 
   app.enableCors({
-    origin: ['http://localhost:3000'],
+    origin: resolveCorsOrigins(config.get<string>('CORS_ORIGINS')),
     credentials: true,
   });
 

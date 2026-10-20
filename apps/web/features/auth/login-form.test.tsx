@@ -50,6 +50,8 @@ describe('LoginForm', () => {
     const user = userEvent.setup();
 
     render(<LoginForm />);
+    await user.type(screen.getByLabelText(/email/i), 'demo@devtrack.local');
+    await user.type(screen.getByLabelText(/password/i), 'password123');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     expect(await screen.findByText(/invalid email or password/i)).toBeInTheDocument();

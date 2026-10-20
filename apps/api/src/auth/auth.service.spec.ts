@@ -21,6 +21,11 @@ describe('AuthService', () => {
       findUnique: jest.Mock;
       create: jest.Mock;
     };
+    refreshToken: {
+      create: jest.Mock;
+      findUnique: jest.Mock;
+      update: jest.Mock;
+    };
   };
   let jwtService: { sign: jest.Mock };
 
@@ -41,9 +46,14 @@ describe('AuthService', () => {
         findUnique: jest.fn(),
         create: jest.fn(),
       },
+      refreshToken: {
+        create: jest.fn().mockResolvedValue({ id: 'rt_1' }),
+        findUnique: jest.fn(),
+        update: jest.fn(),
+      },
     };
     jwtService = {
-      sign: jest.fn().mockReturnValue('test-token'),
+      sign: jest.fn().mockReturnValue('test-access-token'),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -64,7 +74,7 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
-    it('creates a user and returns a token when email is free', async () => {
+    it('creates a user and returns token pair when email is free', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
       prisma.user.create.mockResolvedValue(sampleUser);
       mockedBcrypt.hash.mockResolvedValue('hashed' as never);
@@ -82,13 +92,9 @@ describe('AuthService', () => {
           passwordHash: 'hashed',
         },
       });
-      expect(result.accessToken).toBe('test-token');
-      expect(result.user).toEqual({
-        id: sampleUser.id,
-        email: sampleUser.email,
-        name: sampleUser.name,
-        createdAt: sampleUser.createdAt,
-      });
+      expect(result.accessToken).toBe('test-access-token');
+      expect(result.refreshToken).toHaveLength(96);
+      expect(prisma.refreshToken.create).toHaveBeenCalled();
       expect(result.user).not.toHaveProperty('passwordHash');
     });
 
@@ -106,7 +112,7 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    it('returns a token when credentials are valid', async () => {
+    it('returns a token pair when credentials are valid', async () => {
       prisma.user.findUnique.mockResolvedValue(sampleUser);
       mockedBcrypt.compare.mockResolvedValue(true as never);
 
@@ -115,8 +121,8 @@ describe('AuthService', () => {
         password: 'password123',
       });
 
-      expect(result.accessToken).toBe('test-token');
-      expect(result.user.email).toBe(sampleUser.email);
+      expect(result.accessToken).toBe('test-access-token');
+      expect(result.refreshToken).toBeTruthy();
     });
 
     it('rejects unknown emails with a generic error', async () => {
@@ -140,6 +146,39 @@ describe('AuthService', () => {
           password: 'wrong-password',
         }),
       ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+  });
+
+  describe('refresh', () => {
+    it('rotates refresh tokens', async () => {
+      prisma.refreshToken.findUnique.mockResolvedValue({
+        id: 'rt_1',
+        userId: sampleUser.id,
+        tokenHash: 'hash',
+        expiresAt: new Date(Date.now() + 60_000),
+        revokedAt: null,
+        user: sampleUser,
+      });
+      prisma.refreshToken.update.mockResolvedValue({});
+
+      const result = await service.refresh({ refreshToken: 'a'.repeat(64) });
+
+      expect(prisma.refreshToken.update).toHaveBeenCalled();
+      expect(result.accessToken).toBe('test-access-token');
+      expect(result.refreshToken).toHaveLength(96);
+    });
+
+    it('rejects revoked refresh tokens', async () => {
+      prisma.refreshToken.findUnique.mockResolvedValue({
+        id: 'rt_1',
+        revokedAt: new Date(),
+        expiresAt: new Date(Date.now() + 60_000),
+        user: sampleUser,
+      });
+
+      await expect(service.refresh({ refreshToken: 'a'.repeat(64) })).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
     });
   });
 });

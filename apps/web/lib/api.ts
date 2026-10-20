@@ -1,13 +1,16 @@
 import type {
   AuthResponse,
   AuthUser,
+  LearningGoal,
+  LearningGoalStatus,
   Project,
+  RefreshResponse,
   Task,
   TaskPriority,
   TaskStatus,
 } from '@devtrack/shared';
 
-import { clearAccessToken, getAccessToken } from './auth-storage';
+import { clearTokens, getAccessToken, getRefreshToken, setTokens } from './auth-storage';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
@@ -25,7 +28,40 @@ type RequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
   auth?: boolean;
+  retry?: boolean;
 };
+
+let refreshPromise: Promise<boolean> | null = null;
+
+async function tryRefresh(): Promise<boolean> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!response.ok) {
+      clearTokens();
+      return false;
+    }
+
+    const payload = (await response.json()) as RefreshResponse;
+    setTokens(payload.accessToken, payload.refreshToken);
+    return true;
+  } catch {
+    clearTokens();
+    return false;
+  }
+}
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = {
@@ -49,6 +85,21 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
 
+  if (
+    response.status === 401 &&
+    options.auth !== false &&
+    options.retry !== false &&
+    path !== '/auth/refresh'
+  ) {
+    refreshPromise ??= tryRefresh().finally(() => {
+      refreshPromise = null;
+    });
+    const refreshed = await refreshPromise;
+    if (refreshed) {
+      return request<T>(path, { ...options, retry: false });
+    }
+  }
+
   if (response.status === 204) {
     return undefined as T;
   }
@@ -59,7 +110,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (!response.ok) {
     if (response.status === 401 && options.auth !== false) {
-      clearAccessToken();
+      clearTokens();
     }
 
     const message = Array.isArray(payload?.message)
@@ -109,11 +160,37 @@ export type UpdateTaskInput = {
   dueDate?: string | null;
 };
 
+export type CreateGoalInput = {
+  title: string;
+  description?: string;
+  status?: LearningGoalStatus;
+  targetDate?: string;
+};
+
+export type UpdateGoalInput = {
+  title?: string;
+  description?: string | null;
+  status?: LearningGoalStatus;
+  targetDate?: string | null;
+};
+
 export const api = {
   register: (input: RegisterInput) =>
     request<AuthResponse>('/auth/register', { method: 'POST', body: input, auth: false }),
   login: (input: LoginInput) =>
     request<AuthResponse>('/auth/login', { method: 'POST', body: input, auth: false }),
+  refresh: (refreshToken: string) =>
+    request<RefreshResponse>('/auth/refresh', {
+      method: 'POST',
+      body: { refreshToken },
+      auth: false,
+    }),
+  logout: (refreshToken: string) =>
+    request<void>('/auth/logout', {
+      method: 'POST',
+      body: { refreshToken },
+      auth: false,
+    }),
   me: () => request<AuthUser>('/auth/me'),
   listProjects: () => request<Project[]>('/projects'),
   getProject: (id: string) => request<Project>(`/projects/${id}`),
@@ -129,4 +206,10 @@ export const api = {
     request<Task>(`/projects/${projectId}/tasks/${taskId}`, { method: 'PATCH', body: input }),
   deleteTask: (projectId: string, taskId: string) =>
     request<void>(`/projects/${projectId}/tasks/${taskId}`, { method: 'DELETE' }),
+  listGoals: () => request<LearningGoal[]>('/goals'),
+  createGoal: (input: CreateGoalInput) =>
+    request<LearningGoal>('/goals', { method: 'POST', body: input }),
+  updateGoal: (id: string, input: UpdateGoalInput) =>
+    request<LearningGoal>(`/goals/${id}`, { method: 'PATCH', body: input }),
+  deleteGoal: (id: string) => request<void>(`/goals/${id}`, { method: 'DELETE' }),
 };

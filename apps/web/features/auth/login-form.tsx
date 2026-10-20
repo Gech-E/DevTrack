@@ -13,8 +13,8 @@ import { getErrorMessage, useAuth } from '@/features/auth/auth-provider';
 export function LoginForm() {
   const router = useRouter();
   const { login } = useAuth();
-  const [email, setEmail] = React.useState('demo@devtrack.local');
-  const [password, setPassword] = React.useState('password123');
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
@@ -35,7 +35,7 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-md">
       <CardTitle>Sign in</CardTitle>
-      <CardDescription>Use your DevTrack account to manage projects and tasks.</CardDescription>
+      <CardDescription>Goals, projects, and tasks in one place.</CardDescription>
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
@@ -49,9 +49,9 @@ export function LoginForm() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="login-password">Password</Label>
           <Input
-            id="password"
+            id="login-password"
             type="password"
             autoComplete="current-password"
             value={password}
@@ -70,6 +70,9 @@ export function LoginForm() {
         <Link className="text-[var(--accent)] underline-offset-4 hover:underline" href="/register">
           Register
         </Link>
+      </p>
+      <p className="mt-2 text-xs text-[var(--muted)]">
+        Local demo: demo@devtrack.local / password123
       </p>
     </Card>
   );

@@ -1,4 +1,4 @@
-import { PrismaClient, TaskPriority, TaskStatus } from '@prisma/client';
+import { LearningGoalStatus, PrismaClient, TaskPriority, TaskStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -58,6 +58,24 @@ async function main(): Promise<void> {
     user: { id: user.id, email: user.email },
     project: { id: project.id, name: project.name },
   });
+
+  const existingGoal = await prisma.learningGoal.findFirst({
+    where: { userId: user.id, title: 'Ship a full-stack portfolio app' },
+  });
+
+  if (!existingGoal) {
+    await prisma.learningGoal.create({
+      data: {
+        userId: user.id,
+        title: 'Ship a full-stack portfolio app',
+        description: 'DevTrack end-to-end: API, UI, tests, and deploy.',
+        status: LearningGoalStatus.ACTIVE,
+        targetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+  }
+
+  console.log('Seed goal ready for demo user');
 }
 
 main()

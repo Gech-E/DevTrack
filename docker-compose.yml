@@ -17,5 +17,39 @@ services:
       timeout: 5s
       retries: 10
 
+  api:
+    profiles: ['app']
+    build:
+      context: .
+      target: api
+    container_name: devtrack-api
+    restart: unless-stopped
+    ports:
+      - '3001:3001'
+    environment:
+      DATABASE_URL: postgresql://devtrack:devtrack@postgres:5432/devtrack?schema=public
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      API_PORT: 3001
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    profiles: ['app']
+    build:
+      context: .
+      target: web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    container_name: devtrack-web
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    depends_on:
+      - api
+
 volumes:
   devtrack_pg_data:

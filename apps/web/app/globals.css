@@ -1,10 +1,17 @@
 @import 'tailwindcss';
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap');
 
 :root {
-  --background: #0f1419;
-  --foreground: #e8eef4;
-  --accent: #3d9cf0;
-  --muted: #8b9aab;
+  --background: #07131a;
+  --surface: rgba(12, 28, 38, 0.72);
+  --foreground: #e7f2f6;
+  --accent: #2bb7a9;
+  --accent-strong: #1f9b90;
+  --muted: #8aa3ad;
+  --danger: #f07178;
+  --border: rgba(231, 242, 246, 0.12);
+  --font-display: 'Sora', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Source Sans 3', ui-sans-serif, system-ui, sans-serif;
 }
 
 html,
@@ -16,15 +23,17 @@ body {
 body {
   color: var(--foreground);
   background:
-    radial-gradient(ellipse 80% 60% at 20% -10%, rgba(61, 156, 240, 0.22), transparent),
-    radial-gradient(ellipse 60% 50% at 90% 10%, rgba(45, 212, 191, 0.12), transparent),
-    var(--background);
-  font-family:
-    'Segoe UI',
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    sans-serif;
+    radial-gradient(ellipse 70% 50% at 10% -5%, rgba(43, 183, 169, 0.2), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 95% 5%, rgba(56, 120, 160, 0.18), transparent 50%),
+    linear-gradient(180deg, #0a1820 0%, var(--background) 45%, #061018 100%);
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3,
+.brand {
+  font-family: var(--font-display);
 }
 
 a {
@@ -34,10 +43,28 @@ a {
 
 select {
   color: var(--foreground);
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
 }
 
 select option {
-  color: #0f1419;
-  background: #e8eef4;
+  color: #07131a;
+  background: #e7f2f6;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.45s ease-out both;
 }

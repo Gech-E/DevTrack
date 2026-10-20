@@ -1,11 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { APP_NAME } from '@devtrack/shared';
 
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/features/auth/auth-provider';
+import { cn } from '@/lib/utils';
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -28,25 +30,65 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+const navItems = [
+  { href: '/projects', label: 'Projects' },
+  { href: '/goals', label: 'Goals' },
+];
+
 export function AppHeader() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const [signingOut, setSigningOut] = React.useState(false);
 
-  function onLogout() {
-    logout();
-    router.replace('/login');
+  async function onLogout() {
+    setSigningOut(true);
+    try {
+      await logout();
+      router.replace('/login');
+    } finally {
+      setSigningOut(false);
+    }
   }
 
   return (
-    <header className="border-b border-white/10 bg-black/20 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
-        <div>
-          <p className="text-sm tracking-[0.18em] text-[var(--muted)] uppercase">{APP_NAME}</p>
-          <p className="text-sm text-[var(--foreground)]">{user?.name}</p>
+    <header className="border-b border-[var(--border)] bg-black/25 backdrop-blur-md">
+      <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-4">
+        <div className="flex items-center gap-8">
+          <Link href="/projects" className="brand text-xl font-semibold tracking-tight">
+            {APP_NAME}
+          </Link>
+          <nav className="flex items-center gap-1">
+            {navItems.map((item) => {
+              const active = pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'rounded-md px-3 py-1.5 text-sm transition-colors',
+                    active
+                      ? 'bg-white/10 text-[var(--foreground)]'
+                      : 'text-[var(--muted)] hover:text-[var(--foreground)]',
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
-        <Button variant="secondary" size="sm" onClick={onLogout}>
-          Sign out
-        </Button>
+        <div className="flex items-center gap-3">
+          <p className="hidden text-sm text-[var(--muted)] sm:block">{user?.name}</p>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void onLogout()}
+            disabled={signingOut}
+          >
+            {signingOut ? 'Signing out…' : 'Sign out'}
+          </Button>
+        </div>
       </div>
     </header>
   );

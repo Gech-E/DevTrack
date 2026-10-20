@@ -4,14 +4,14 @@ import * as React from 'react';
 import type { AuthUser } from '@devtrack/shared';
 
 import { api, ApiError } from '@/lib/api';
-import { clearAccessToken, getAccessToken, setAccessToken } from '@/lib/auth-storage';
+import { clearTokens, getAccessToken, getRefreshToken, setTokens } from '@/lib/auth-storage';
 
 type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = React.createContext<AuthContextValue | null>(null);
@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .me()
       .then(setUser)
       .catch(() => {
-        clearAccessToken();
+        clearTokens();
         setUser(null);
       })
       .finally(() => setLoading(false));
@@ -39,18 +39,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = React.useCallback(async (email: string, password: string) => {
     const result = await api.login({ email, password });
-    setAccessToken(result.accessToken);
+    setTokens(result.accessToken, result.refreshToken);
     setUser(result.user);
   }, []);
 
   const register = React.useCallback(async (name: string, email: string, password: string) => {
     const result = await api.register({ name, email, password });
-    setAccessToken(result.accessToken);
+    setTokens(result.accessToken, result.refreshToken);
     setUser(result.user);
   }, []);
 
-  const logout = React.useCallback(() => {
-    clearAccessToken();
+  const logout = React.useCallback(async () => {
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      try {
+        await api.logout(refreshToken);
+      } catch {
+        // Local logout still proceeds if revoke fails.
+      }
+    }
+    clearTokens();
     setUser(null);
   }, []);
 

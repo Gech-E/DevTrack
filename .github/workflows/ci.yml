@@ -29,6 +29,7 @@ jobs:
       JWT_SECRET: ci-test-secret
       API_PORT: 3001
       NEXT_PUBLIC_API_URL: http://localhost:3001
+      CORS_ORIGINS: http://localhost:3000
 
     steps:
       - uses: actions/checkout@v4

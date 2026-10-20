@@ -16,12 +16,14 @@
     "test": "pnpm --filter @devtrack/api test && pnpm --filter @devtrack/web test",
     "test:e2e:api": "pnpm --filter @devtrack/api test:e2e",
     "test:e2e": "playwright test",
-    "db:up": "docker compose up -d",
+    "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "db:logs": "docker compose logs -f postgres",
     "db:migrate": "pnpm --filter @devtrack/api prisma:migrate",
     "db:seed": "pnpm --filter @devtrack/api prisma:seed",
-    "db:studio": "pnpm --filter @devtrack/api prisma:studio"
+    "db:studio": "pnpm --filter @devtrack/api prisma:studio",
+    "deploy:up": "docker compose --profile app up --build -d",
+    "deploy:down": "docker compose --profile app down"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

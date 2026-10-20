@@ -6,10 +6,10 @@ import { TaskPriority, TaskStatus, type Project, type Task } from '@devtrack/sha
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardDescription, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getErrorMessage } from '@/features/auth/auth-provider';
+import { formatLabel } from '@/lib/labels';
 import { api } from '@/lib/api';
 
 const statuses = Object.values(TaskStatus);
@@ -71,6 +71,9 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
   }
 
   async function onDelete(taskId: string) {
+    if (!window.confirm('Delete this task?')) {
+      return;
+    }
     setError(null);
     try {
       await api.deleteTask(projectId, taskId);
@@ -87,7 +90,7 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
   if (!project) {
     return (
       <div className="mx-auto max-w-5xl px-6 py-10">
-        <p className="text-red-400">{error ?? 'Project not found'}</p>
+        <p className="text-[var(--danger)]">{error ?? 'Project not found'}</p>
         <Button asChild variant="secondary" className="mt-4">
           <Link href="/projects">Back to projects</Link>
         </Button>
@@ -96,7 +99,7 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-8 px-6 py-10">
+    <div className="animate-fade-up mx-auto w-full max-w-5xl space-y-8 px-6 py-10">
       <div>
         <Link className="text-sm text-[var(--accent)]" href="/projects">
           ← Projects
@@ -105,10 +108,12 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
         <p className="mt-2 text-[var(--muted)]">{project.description ?? 'No description'}</p>
       </div>
 
-      <Card>
-        <CardTitle>New task</CardTitle>
-        <CardDescription>Add work items under this project.</CardDescription>
-        <form className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto_auto]" onSubmit={onCreate}>
+      <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+        <div>
+          <h2 className="text-lg font-semibold">New task</h2>
+          <p className="text-sm text-[var(--muted)]">Add work items under this project.</p>
+        </div>
+        <form className="grid gap-4 sm:grid-cols-[1fr_auto_auto]" onSubmit={onCreate}>
           <div className="space-y-2">
             <Label htmlFor="task-title">Title</Label>
             <Input
@@ -122,13 +127,12 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
             <Label htmlFor="task-priority">Priority</Label>
             <select
               id="task-priority"
-              className="flex h-10 w-full rounded-md border border-white/15 bg-black/20 px-3 text-sm"
               value={priority}
               onChange={(e) => setPriority(e.target.value as Task['priority'])}
             >
               {priorities.map((value) => (
                 <option key={value} value={value}>
-                  {value}
+                  {formatLabel(value)}
                 </option>
               ))}
             </select>
@@ -139,35 +143,35 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
             </Button>
           </div>
         </form>
-      </Card>
+      </section>
 
-      {error ? <p className="text-sm text-red-400">{error}</p> : null}
+      {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
 
       <div className="grid gap-3">
         {tasks.length === 0 ? (
           <p className="text-[var(--muted)]">No tasks yet.</p>
         ) : (
           tasks.map((task) => (
-            <Card
+            <article
               key={task.id}
-              className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:flex-row sm:items-center sm:justify-between"
             >
               <div>
-                <CardTitle className="text-base">{task.title}</CardTitle>
+                <h3 className="text-base font-semibold">{task.title}</h3>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <Badge>{task.status}</Badge>
-                  <Badge>{task.priority}</Badge>
+                  <Badge>{formatLabel(task.status)}</Badge>
+                  <Badge>{formatLabel(task.priority)}</Badge>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <select
-                  className="h-8 rounded-md border border-white/15 bg-black/20 px-2 text-xs"
+                  aria-label={`Status for ${task.title}`}
                   value={task.status}
                   onChange={(e) => void onStatusChange(task, e.target.value as Task['status'])}
                 >
                   {statuses.map((value) => (
                     <option key={value} value={value}>
-                      {value}
+                      {formatLabel(value)}
                     </option>
                   ))}
                 </select>
@@ -175,7 +179,7 @@ export function ProjectDetailPage({ projectId }: { projectId: string }) {
                   Delete
                 </Button>
               </div>
-            </Card>
+            </article>
           ))
         )}
       </div>

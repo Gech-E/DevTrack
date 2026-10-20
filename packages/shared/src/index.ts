@@ -25,6 +25,15 @@ export const TaskPriority = {
 
 export type TaskPriority = (typeof TaskPriority)[keyof typeof TaskPriority];
 
+/** Mirrors Prisma `LearningGoalStatus`. */
+export const LearningGoalStatus = {
+  NOT_STARTED: 'NOT_STARTED',
+  ACTIVE: 'ACTIVE',
+  COMPLETED: 'COMPLETED',
+} as const;
+
+export type LearningGoalStatus = (typeof LearningGoalStatus)[keyof typeof LearningGoalStatus];
+
 /** Public user shape returned by auth endpoints (never includes password). */
 export type AuthUser = {
   id: string;
@@ -35,7 +44,13 @@ export type AuthUser = {
 
 export type AuthResponse = {
   accessToken: string;
+  refreshToken: string;
   user: AuthUser;
+};
+
+export type RefreshResponse = {
+  accessToken: string;
+  refreshToken: string;
 };
 
 /** Public project shape returned by project endpoints. */
@@ -57,6 +72,18 @@ export type Task = {
   status: TaskStatus;
   priority: TaskPriority;
   dueDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Public learning goal shape. */
+export type LearningGoal = {
+  id: string;
+  userId: string;
+  title: string;
+  description: string | null;
+  status: LearningGoalStatus;
+  targetDate: string | null;
   createdAt: string;
   updatedAt: string;
 };

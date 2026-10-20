@@ -44,8 +44,20 @@ describe('DevTrack API (e2e)', () => {
 
     expect([200, 201]).toContain(login.status);
 
-    const token = login.body.accessToken as string;
-    expect(token).toBeTruthy();
+    const refreshToken = login.body.refreshToken as string;
+    expect(login.body.accessToken).toBeTruthy();
+    expect(refreshToken).toBeTruthy();
+
+    const refreshed = await request(app.getHttpServer())
+      .post('/api/v1/auth/refresh')
+      .send({ refreshToken })
+      .expect(200);
+
+    expect(refreshed.body.accessToken).toBeTruthy();
+    expect(refreshed.body.refreshToken).toBeTruthy();
+    expect(refreshed.body.refreshToken).not.toBe(refreshToken);
+
+    const token = refreshed.body.accessToken as string;
 
     const projectRes = await request(app.getHttpServer())
       .post('/api/v1/projects')
@@ -62,6 +74,19 @@ describe('DevTrack API (e2e)', () => {
       .expect(201);
 
     expect(taskRes.body.title).toBe('E2E Task');
+
+    const goalRes = await request(app.getHttpServer())
+      .post('/api/v1/goals')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ title: 'E2E Goal', status: 'ACTIVE' })
+      .expect(201);
+
+    expect(goalRes.body.title).toBe('E2E Goal');
+
+    await request(app.getHttpServer())
+      .delete(`/api/v1/goals/${goalRes.body.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(204);
 
     await request(app.getHttpServer())
       .delete(`/api/v1/projects/${projectId}/tasks/${taskRes.body.id}`)
