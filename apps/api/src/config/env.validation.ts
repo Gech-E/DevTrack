@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { plainToInstance, Type } from 'class-transformer';
 import {
   IsIn,
