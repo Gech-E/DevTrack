@@ -2,6 +2,13 @@
 module.exports = {
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+  collectCoverageFrom: [
+    'components/**/*.{ts,tsx}',
+    'features/**/*.{ts,tsx}',
+    'lib/**/*.{ts,tsx}',
+    '!**/*.test.{ts,tsx}',
+  ],
+  coverageDirectory: './coverage',
   testMatch: ['**/?(*.)+(spec|test).[jt]s?(x)'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',

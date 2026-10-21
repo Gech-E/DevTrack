@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { LearningGoal } from '@prisma/client';
 
+import { pageArgs, type PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { PrismaService } from '../database/prisma.service';
 import type { CreateLearningGoalDto } from './dto/create-learning-goal.dto';
 import type { UpdateLearningGoalDto } from './dto/update-learning-goal.dto';
@@ -9,10 +10,11 @@ import type { UpdateLearningGoalDto } from './dto/update-learning-goal.dto';
 export class GoalsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  listForUser(userId: string): Promise<LearningGoal[]> {
+  listForUser(userId: string, query: PaginationQueryDto = {}): Promise<LearningGoal[]> {
     return this.prisma.learningGoal.findMany({
       where: { userId },
       orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
+      ...pageArgs(query),
     });
   }
 

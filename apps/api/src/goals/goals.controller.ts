@@ -8,24 +8,23 @@ import {
   Param,
   Patch,
   Post,
-  UseGuards,
+  Query,
 } from '@nestjs/common';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { CreateLearningGoalDto } from './dto/create-learning-goal.dto';
 import { UpdateLearningGoalDto } from './dto/update-learning-goal.dto';
 import { GoalsService } from './goals.service';
 
 @Controller('goals')
-@UseGuards(JwtAuthGuard)
 export class GoalsController {
   constructor(private readonly goalsService: GoalsService) {}
 
   @Get()
-  list(@CurrentUser() user: AuthenticatedUser) {
-    return this.goalsService.listForUser(user.userId);
+  list(@CurrentUser() user: AuthenticatedUser, @Query() query: PaginationQueryDto) {
+    return this.goalsService.listForUser(user.userId, query);
   }
 
   @Get(':id')

@@ -12,7 +12,8 @@ export default [
       },
     },
     rules: {
-      // Nest DI requires runtime class imports even when only used as parameter types.
+      // Nest DI reads constructor parameter types at runtime, so `consistent-type-imports` is
+      // deliberately not enabled here: injected classes must be real (non-type) imports.
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/explicit-function-return-type': 'off',
     },

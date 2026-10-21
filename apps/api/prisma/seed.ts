@@ -3,9 +3,18 @@ import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
+/** Demo account for local development and CI only. */
+const DEMO_EMAIL = 'demo@devtrack.local';
+const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? 'password123';
+
 async function main(): Promise<void> {
-  const email = 'demo@devtrack.local';
-  const passwordHash = await bcrypt.hash('password123', 10);
+  // The demo user has a publicly known password, so it must never exist in a real environment.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Refusing to seed demo data when NODE_ENV=production');
+  }
+
+  const email = DEMO_EMAIL;
+  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
   const user = await prisma.user.upsert({
     where: { email },

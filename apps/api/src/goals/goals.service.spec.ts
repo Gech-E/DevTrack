@@ -54,6 +54,8 @@ describe('GoalsService', () => {
     expect(prisma.learningGoal.findMany).toHaveBeenCalledWith({
       where: { userId: 'user_1' },
       orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
+      take: 100,
+      skip: 0,
     });
     expect(result).toEqual([goal]);
   });

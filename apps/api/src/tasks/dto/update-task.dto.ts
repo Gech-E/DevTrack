@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEnum, IsISO8601, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { TaskPriority, TaskStatus } from '@devtrack/shared';
 
 export class UpdateTaskDto {
@@ -21,7 +21,8 @@ export class UpdateTaskDto {
   @IsEnum(TaskPriority)
   priority?: TaskPriority;
 
+  /** ISO 8601 date or date-time; send `null` to clear. */
   @IsOptional()
-  @IsString()
+  @IsISO8601({ strict: true })
   dueDate?: string | null;
 }

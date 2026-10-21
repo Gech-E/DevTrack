@@ -4,10 +4,11 @@ services:
     container_name: devtrack-postgres
     restart: unless-stopped
     ports:
-      - '55432:5432'
+      # Loopback only: the database is never exposed on the network interface.
+      - '127.0.0.1:55432:5432'
     environment:
       POSTGRES_USER: devtrack
-      POSTGRES_PASSWORD: devtrack
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devtrack}
       POSTGRES_DB: devtrack
     volumes:
       - devtrack_pg_data:/var/lib/postgresql/data
@@ -27,10 +28,16 @@ services:
     ports:
       - '3001:3001'
     environment:
-      DATABASE_URL: postgresql://devtrack:devtrack@postgres:5432/devtrack?schema=public
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      DATABASE_URL: postgresql://devtrack:${POSTGRES_PASSWORD:-devtrack}@postgres:5432/devtrack?schema=public
+      # No default on purpose: the API refuses to boot in production without a strong secret.
+      JWT_SECRET: ${JWT_SECRET:-}
       API_PORT: 3001
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      WEB_APP_URL: ${WEB_APP_URL:-http://localhost:3000}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-0}
+      MAIL_TRANSPORT: ${MAIL_TRANSPORT:-log}
+      MAIL_FROM: ${MAIL_FROM:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -41,7 +48,10 @@ services:
       context: .
       target: web
       args:
+        # The localhost fallbacks are for running the stack on one machine. Real deployments
+        # build with the release workflow, which requires NEXT_PUBLIC_API_URL to be set.
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+        NEXT_PUBLIC_CONTACT_EMAIL: ${NEXT_PUBLIC_CONTACT_EMAIL:-}
     container_name: devtrack-web
     restart: unless-stopped
     ports:
@@ -49,7 +59,8 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   devtrack_pg_data:

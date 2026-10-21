@@ -8,24 +8,27 @@ import {
   Param,
   Patch,
   Post,
-  UseGuards,
+  Query,
 } from '@nestjs/common';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { CreateTaskDto } from './dto/create-task.dto';
+import { ListTasksQueryDto } from './dto/list-tasks-query.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { TasksService } from './tasks.service';
 
 @Controller('projects/:projectId/tasks')
-@UseGuards(JwtAuthGuard)
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Get()
-  list(@CurrentUser() user: AuthenticatedUser, @Param('projectId') projectId: string) {
-    return this.tasksService.listForProject(user.userId, projectId);
+  list(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('projectId') projectId: string,
+    @Query() query: ListTasksQueryDto,
+  ) {
+    return this.tasksService.listForProject(user.userId, projectId, query);
   }
 
   @Get(':taskId')
