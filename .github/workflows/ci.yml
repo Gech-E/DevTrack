@@ -82,25 +82,25 @@ jobs:
           EOF
 
       - name: Lint
-        run: pnpm lint
+        run: scripts/ci-run.sh lint pnpm lint
 
       - name: Typecheck
-        run: pnpm typecheck
+        run: scripts/ci-run.sh typecheck pnpm typecheck
 
       - name: Unit tests
-        run: pnpm test:coverage
+        run: scripts/ci-run.sh "unit tests" pnpm test:coverage
 
       - name: API e2e tests
-        run: pnpm test:e2e:api
+        run: scripts/ci-run.sh "api e2e" pnpm test:e2e:api
 
       - name: Build apps
-        run: pnpm build
+        run: scripts/ci-run.sh build pnpm build
 
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Playwright e2e (against built artifacts)
-        run: pnpm test:e2e
+        run: scripts/ci-run.sh "playwright e2e" pnpm test:e2e
         env:
           CI: true
 
