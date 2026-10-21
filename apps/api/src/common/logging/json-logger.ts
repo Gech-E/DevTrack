@@ -30,15 +30,31 @@ export class JsonLogger implements LoggerService {
     const context = strings.length > 0 ? strings[strings.length - 1] : undefined;
     const stack = level === 'error' && strings.length > 1 ? strings[0] : undefined;
 
+    const formatted = this.format(message);
     const entry = {
       level,
       time: new Date().toISOString(),
       context,
-      message: typeof message === 'string' ? message : JSON.stringify(message),
-      stack,
+      message: formatted.message,
+      stack: formatted.stack ?? stack,
     };
 
     const stream = level === 'error' ? process.stderr : process.stdout;
     stream.write(`${JSON.stringify(entry)}\n`);
+  }
+
+  /** Error objects have no enumerable fields, so JSON.stringify(error) would print "{}". */
+  private format(message: unknown): { message: string; stack?: string } {
+    if (message instanceof Error) {
+      return { message: message.message, stack: message.stack };
+    }
+    if (typeof message === 'string') {
+      return { message };
+    }
+    try {
+      return { message: JSON.stringify(message) };
+    } catch {
+      return { message: String(message) };
+    }
   }
 }

@@ -10,6 +10,9 @@ import { JsonLogger } from './common/logging/json-logger';
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: process.env.NODE_ENV === 'production' ? new JsonLogger() : undefined,
+    // Let startup failures (such as invalid configuration) reject so the catch below can print
+    // them and exit with status 1, instead of Nest calling process.abort().
+    abortOnError: false,
   });
 
   configureApp(app);
