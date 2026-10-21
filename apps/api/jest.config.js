@@ -9,6 +9,7 @@ module.exports = {
   },
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.module.ts', '!src/main.ts'],
   coverageDirectory: './coverage',
+  reporters: process.env.GITHUB_ACTIONS ? ['default', 'github-actions'] : ['default'],
   testEnvironment: 'node',
   moduleNameMapper: {
     '^@devtrack/shared$': '<rootDir>/../../packages/shared/src/index.ts',

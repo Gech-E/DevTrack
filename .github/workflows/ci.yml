@@ -155,16 +155,16 @@ jobs:
 
       - name: API refuses to boot in production with a default secret
         run: |
-          set +e
-          docker run --rm --network host \
+          if docker run --rm --network host \
             -e DATABASE_URL='postgresql://devtrack:devtrack@localhost:5432/devtrack?schema=public' \
             -e JWT_SECRET='change-me-in-development-only' \
             -e CORS_ORIGINS='https://app.ci.example' \
             -e WEB_APP_URL='https://app.ci.example' \
-            --entrypoint node devtrack-api:ci dist/main.js >/tmp/weak.log 2>&1
-          status=$?
+            --entrypoint node devtrack-api:ci dist/main.js >/tmp/weak.log 2>&1; then
+            echo "The API started with a default JWT_SECRET in production" >&2
+            exit 1
+          fi
           cat /tmp/weak.log
-          test "$status" -ne 0
           grep -q "JWT_SECRET" /tmp/weak.log
 
       - name: Smoke test the API container
@@ -186,6 +186,16 @@ jobs:
           test "$(docker exec api id -u)" != "0"
           docker logs api | tail -20
 
+      - name: Surface logs on failure
+        if: ${{ failure() }}
+        run: |
+          scripts/ci-annotate.sh error "weak-secret check" /tmp/weak.log
+          scripts/ci-annotate.sh error "web build without API URL" /tmp/web-nourl.log
+          if docker ps -a --format '{{.Names}}' | grep -qx api; then
+            docker logs api >/tmp/api-container.log 2>&1 || true
+            scripts/ci-annotate.sh error "api container" /tmp/api-container.log
+          fi
+
   audit:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -199,4 +209,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-      - run: pnpm audit --prod --audit-level=high
+      - name: Audit production dependencies
+        run: |
+          if ! pnpm audit --prod --audit-level=high >/tmp/audit.log 2>&1; then
+            scripts/ci-annotate.sh warning "pnpm audit" /tmp/audit.log
+            exit 1
+          fi

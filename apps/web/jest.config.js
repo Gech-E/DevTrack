@@ -1,5 +1,6 @@
 /** @type {import('jest').Config} */
 module.exports = {
+  reporters: process.env.GITHUB_ACTIONS ? ['default', 'github-actions'] : ['default'],
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   collectCoverageFrom: [

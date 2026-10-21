@@ -45,8 +45,9 @@ describe('MailService', () => {
     await service.send(message);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] ?? [];
-    expect(url).toBe('https://api.resend.com/emails');
+    const call = fetchMock.mock.calls[0];
+    const init = call?.[1];
+    expect(call?.[0]).toBe('https://api.resend.com/emails');
     expect((init?.headers as Record<string, string>).Authorization).toBe('Bearer re_test');
     expect(JSON.parse(String(init?.body))).toMatchObject({
       to: ['user@devtrack.local'],

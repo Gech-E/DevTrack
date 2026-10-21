@@ -11,7 +11,7 @@ import { AllExceptionsFilter } from './all-exceptions.filter';
 
 function run(exception: unknown) {
   const json = jest.fn();
-  const status = jest.fn(() => ({ json }));
+  const status = jest.fn((_code: number) => ({ json }));
   const host = {
     switchToHttp: () => ({
       getRequest: () => ({ id: 'req-12345678', method: 'GET', originalUrl: '/api/v1/x?secret=1' }),
@@ -21,7 +21,7 @@ function run(exception: unknown) {
 
   new AllExceptionsFilter().catch(exception, host);
 
-  return { status: status.mock.calls[0]?.[0] as number, body: json.mock.calls[0]?.[0] };
+  return { status: status.mock.calls[0]?.[0], body: json.mock.calls[0]?.[0] };
 }
 
 const prismaError = (code: string) =>
