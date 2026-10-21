@@ -6,6 +6,7 @@ module.exports = {
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
+  reporters: process.env.GITHUB_ACTIONS ? ['default', 'github-actions'] : ['default'],
   testEnvironment: 'node',
   testTimeout: 30000,
   moduleNameMapper: {

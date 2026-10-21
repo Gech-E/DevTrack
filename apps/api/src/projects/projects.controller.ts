@@ -8,24 +8,23 @@ import {
   Param,
   Patch,
   Post,
-  UseGuards,
+  Query,
 } from '@nestjs/common';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectsService } from './projects.service';
 
 @Controller('projects')
-@UseGuards(JwtAuthGuard)
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Get()
-  list(@CurrentUser() user: AuthenticatedUser) {
-    return this.projectsService.listForUser(user.userId);
+  list(@CurrentUser() user: AuthenticatedUser, @Query() query: PaginationQueryDto) {
+    return this.projectsService.listForUser(user.userId, query);
   }
 
   @Get(':id')

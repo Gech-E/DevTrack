@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Project } from '@prisma/client';
 
+import { pageArgs, type PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { PrismaService } from '../database/prisma.service';
 import type { CreateProjectDto } from './dto/create-project.dto';
 import type { UpdateProjectDto } from './dto/update-project.dto';
@@ -9,10 +10,11 @@ import type { UpdateProjectDto } from './dto/update-project.dto';
 export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  listForUser(userId: string): Promise<Project[]> {
+  listForUser(userId: string, query: PaginationQueryDto = {}): Promise<Project[]> {
     return this.prisma.project.findMany({
       where: { userId },
       orderBy: { updatedAt: 'desc' },
+      ...pageArgs(query),
     });
   }
 

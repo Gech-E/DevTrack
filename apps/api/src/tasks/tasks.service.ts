@@ -1,9 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Task } from '@prisma/client';
 
+import { pageArgs } from '../common/dto/pagination-query.dto';
 import { PrismaService } from '../database/prisma.service';
 import { ProjectsService } from '../projects/projects.service';
 import type { CreateTaskDto } from './dto/create-task.dto';
+import type { ListTasksQueryDto } from './dto/list-tasks-query.dto';
 import type { UpdateTaskDto } from './dto/update-task.dto';
 
 @Injectable()
@@ -13,18 +15,22 @@ export class TasksService {
     private readonly projectsService: ProjectsService,
   ) {}
 
-  async listForProject(userId: string, projectId: string): Promise<Task[]> {
+  async listForProject(
+    userId: string,
+    projectId: string,
+    query: ListTasksQueryDto = {},
+  ): Promise<Task[]> {
     await this.projectsService.getForUser(userId, projectId);
 
     return this.prisma.task.findMany({
-      where: { projectId },
+      where: { projectId, ...(query.status ? { status: query.status } : {}) },
       orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
+      ...pageArgs(query),
     });
   }
 
   async getForProject(userId: string, projectId: string, taskId: string): Promise<Task> {
-    await this.projectsService.getForUser(userId, projectId);
-    return this.findInProjectOrThrow(projectId, taskId);
+    return this.findOwnedOrThrow(userId, projectId, taskId);
   }
 
   async createForProject(userId: string, projectId: string, dto: CreateTaskDto): Promise<Task> {
@@ -48,8 +54,7 @@ export class TasksService {
     taskId: string,
     dto: UpdateTaskDto,
   ): Promise<Task> {
-    await this.projectsService.getForUser(userId, projectId);
-    await this.findInProjectOrThrow(projectId, taskId);
+    await this.findOwnedOrThrow(userId, projectId, taskId);
 
     return this.prisma.task.update({
       where: { id: taskId },
@@ -64,14 +69,14 @@ export class TasksService {
   }
 
   async deleteForProject(userId: string, projectId: string, taskId: string): Promise<void> {
-    await this.projectsService.getForUser(userId, projectId);
-    await this.findInProjectOrThrow(projectId, taskId);
+    await this.findOwnedOrThrow(userId, projectId, taskId);
     await this.prisma.task.delete({ where: { id: taskId } });
   }
 
-  private async findInProjectOrThrow(projectId: string, taskId: string): Promise<Task> {
+  /** One query proves both that the task is in the project and that the project is the user's. */
+  private async findOwnedOrThrow(userId: string, projectId: string, taskId: string): Promise<Task> {
     const task = await this.prisma.task.findFirst({
-      where: { id: taskId, projectId },
+      where: { id: taskId, projectId, project: { userId } },
     });
 
     if (!task) {
