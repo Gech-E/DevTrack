@@ -15,17 +15,22 @@ describe('GoalsService', () => {
       update: jest.Mock;
       delete: jest.Mock;
     };
+    project: {
+      findFirst: jest.Mock;
+    };
   };
 
   const goal = {
     id: 'goal_1',
     userId: 'user_1',
+    projectId: null,
     title: 'Master NestJS',
     description: null,
     status: LearningGoalStatus.ACTIVE,
     targetDate: null,
     createdAt: new Date(),
     updatedAt: new Date(),
+    project: null,
   };
 
   beforeEach(async () => {
@@ -37,6 +42,9 @@ describe('GoalsService', () => {
         update: jest.fn(),
         delete: jest.fn(),
       },
+      project: {
+        findFirst: jest.fn(),
+      },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -46,13 +54,14 @@ describe('GoalsService', () => {
     service = module.get(GoalsService);
   });
 
-  it('lists goals for the authenticated user', async () => {
+  it('lists goals for the authenticated user with project include', async () => {
     prisma.learningGoal.findMany.mockResolvedValue([goal]);
 
     const result = await service.listForUser('user_1');
 
     expect(prisma.learningGoal.findMany).toHaveBeenCalledWith({
       where: { userId: 'user_1' },
+      include: { project: { select: { id: true, name: true } } },
       orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
     });
     expect(result).toEqual([goal]);

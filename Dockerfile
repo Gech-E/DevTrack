@@ -1,5 +1,4 @@
-# syntax=docker/dockerfile:1
-
+# Railway uses the multi-stage Dockerfile; build the API target.
 FROM node:20-alpine AS base
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 WORKDIR /app

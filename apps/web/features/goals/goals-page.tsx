@@ -1,24 +1,25 @@
 'use client';
 
 import * as React from 'react';
-import { LearningGoalStatus, type LearningGoal } from '@devtrack/shared';
+import { LearningGoalStatus, type LearningGoal, type Project } from '@devtrack/shared';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardDescription, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getErrorMessage } from '@/features/auth/auth-provider';
-import { formatGoalStatus, formatLabel } from '@/lib/labels';
 import { api } from '@/lib/api';
+import { formatGoalStatus, formatLabel } from '@/lib/labels';
 
 const statuses = Object.values(LearningGoalStatus);
 
 export function GoalsPage() {
   const [goals, setGoals] = React.useState<LearningGoal[]>([]);
+  const [projects, setProjects] = React.useState<Project[]>([]);
   const [title, setTitle] = React.useState('');
   const [description, setDescription] = React.useState('');
   const [targetDate, setTargetDate] = React.useState('');
+  const [projectId, setProjectId] = React.useState('');
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
@@ -27,7 +28,9 @@ export function GoalsPage() {
     setLoading(true);
     setError(null);
     try {
-      setGoals(await api.listGoals());
+      const [goalRows, projectRows] = await Promise.all([api.listGoals(), api.listProjects()]);
+      setGoals(goalRows);
+      setProjects(projectRows);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -49,11 +52,13 @@ export function GoalsPage() {
         description: description.trim() || undefined,
         targetDate: targetDate ? new Date(targetDate).toISOString() : undefined,
         status: LearningGoalStatus.ACTIVE,
+        projectId: projectId || null,
       });
       setGoals((current) => [created, ...current]);
       setTitle('');
       setDescription('');
       setTargetDate('');
+      setProjectId('');
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -65,6 +70,18 @@ export function GoalsPage() {
     setError(null);
     try {
       const updated = await api.updateGoal(goal.id, { status });
+      setGoals((current) => current.map((item) => (item.id === goal.id ? updated : item)));
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  }
+
+  async function onProjectChange(goal: LearningGoal, nextProjectId: string) {
+    setError(null);
+    try {
+      const updated = await api.updateGoal(goal.id, {
+        projectId: nextProjectId || null,
+      });
       setGoals((current) => current.map((item) => (item.id === goal.id ? updated : item)));
     } catch (err) {
       setError(getErrorMessage(err));
@@ -85,19 +102,20 @@ export function GoalsPage() {
   }
 
   return (
-    <div className="animate-fade-up mx-auto w-full max-w-5xl space-y-8 px-6 py-10">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Learning goals</h1>
-        <p className="mt-2 text-[var(--muted)]">
-          Track what you want to learn — separate from day-to-day project tasks.
+    <div className="animate-fade-up mx-auto w-full max-w-5xl space-y-10 px-6 py-10">
+      <header className="max-w-2xl">
+        <p className="text-sm tracking-[0.2em] text-[var(--accent)] uppercase">Growth</p>
+        <h1 className="mt-2 text-4xl font-semibold tracking-tight">Learning goals</h1>
+        <p className="mt-3 text-lg text-[var(--muted)]">
+          Set the destination. Optionally attach a project so practice stays connected to outcomes.
         </p>
-      </div>
+      </header>
 
-      <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+      <section className="panel space-y-5 p-6">
         <div>
-          <h2 className="text-lg font-semibold">New goal</h2>
+          <h2 className="text-xl font-semibold">New goal</h2>
           <p className="text-sm text-[var(--muted)]">
-            Set a direction, then mark progress over time.
+            One clear objective. Link a project when ready.
           </p>
         </div>
         <form className="grid gap-4 sm:grid-cols-2" onSubmit={onCreate}>
@@ -129,6 +147,22 @@ export function GoalsPage() {
               onChange={(e) => setTargetDate(e.target.value)}
             />
           </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="goal-project">Linked project</Label>
+            <select
+              id="goal-project"
+              className="w-full"
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+            >
+              <option value="">No project</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="sm:col-span-2">
             <Button type="submit" disabled={submitting}>
               {submitting ? 'Saving…' : 'Add goal'}
@@ -148,7 +182,7 @@ export function GoalsPage() {
           {goals.map((goal) => (
             <article
               key={goal.id}
-              className="flex flex-col gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:flex-row sm:items-center sm:justify-between"
+              className="panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -160,9 +194,22 @@ export function GoalsPage() {
                   {goal.targetDate
                     ? ` · Target ${new Date(goal.targetDate).toLocaleDateString()}`
                     : ''}
+                  {goal.project ? ` · Project: ${goal.project.name}` : ''}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <select
+                  aria-label={`Project for ${goal.title}`}
+                  value={goal.projectId ?? ''}
+                  onChange={(e) => void onProjectChange(goal, e.target.value)}
+                >
+                  <option value="">No project</option>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
                 <select
                   aria-label={`Status for ${goal.title}`}
                   value={goal.status}

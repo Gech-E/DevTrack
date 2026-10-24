@@ -1,0 +1,29 @@
+# API-only image for Railway / single-service hosts
+FROM node:20-alpine AS base
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+WORKDIR /app
+
+FROM base AS deps
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+COPY packages/shared/package.json packages/shared/
+COPY packages/eslint-config/package.json packages/eslint-config/
+COPY packages/tsconfig/package.json packages/tsconfig/
+RUN pnpm install --frozen-lockfile
+
+FROM deps AS build
+COPY packages ./packages
+COPY apps/api ./apps/api
+RUN pnpm --filter @devtrack/shared build \
+  && pnpm --filter @devtrack/api exec prisma generate \
+  && pnpm --filter @devtrack/api build
+
+FROM node:20-alpine
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build /app /app
+WORKDIR /app/apps/api
+EXPOSE 3001
+CMD ["sh", "-c", "pnpm exec prisma migrate deploy && node dist/main.js"]

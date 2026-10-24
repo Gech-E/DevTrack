@@ -42,15 +42,13 @@ export type AuthUser = {
   createdAt: string;
 };
 
+/** Tokens live in httpOnly cookies; responses only expose the user. */
 export type AuthResponse = {
-  accessToken: string;
-  refreshToken: string;
   user: AuthUser;
 };
 
 export type RefreshResponse = {
-  accessToken: string;
-  refreshToken: string;
+  ok: true;
 };
 
 /** Public project shape returned by project endpoints. */
@@ -76,10 +74,18 @@ export type Task = {
   updatedAt: string;
 };
 
+/** Linked project summary on a learning goal. */
+export type GoalProjectSummary = {
+  id: string;
+  name: string;
+};
+
 /** Public learning goal shape. */
 export type LearningGoal = {
   id: string;
   userId: string;
+  projectId: string | null;
+  project: GoalProjectSummary | null;
   title: string;
   description: string | null;
   status: LearningGoalStatus;

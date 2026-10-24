@@ -1,10 +1,19 @@
 import { ValidationPipe } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
+import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 
 import { AppModule } from '../src/app.module';
+
+function cookieHeader(setCookie: string[] | string | undefined): string {
+  if (!setCookie) {
+    return '';
+  }
+  const values = Array.isArray(setCookie) ? setCookie : [setCookie];
+  return values.map((entry) => entry.split(';')[0]).join('; ');
+}
 
 describe('DevTrack API (e2e)', () => {
   let app: INestApplication<App>;
@@ -15,6 +24,7 @@ describe('DevTrack API (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.use(cookieParser());
     app.setGlobalPrefix('api/v1', { exclude: ['health'] });
     app.useGlobalPipes(
       new ValidationPipe({
@@ -37,31 +47,30 @@ describe('DevTrack API (e2e)', () => {
     expect(['up', 'down']).toContain(response.body.database);
   });
 
-  it('logs in the seeded user and manages a project/task', async () => {
+  it('logs in with httpOnly cookies and manages project/task/goal', async () => {
     const login = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email: 'demo@devtrack.local', password: 'password123' });
 
     expect([200, 201]).toContain(login.status);
+    expect(login.body.user.email).toBe('demo@devtrack.local');
+    expect(login.body.accessToken).toBeUndefined();
 
-    const refreshToken = login.body.refreshToken as string;
-    expect(login.body.accessToken).toBeTruthy();
-    expect(refreshToken).toBeTruthy();
+    let cookies = cookieHeader(login.headers['set-cookie']);
+    expect(cookies).toContain('devtrack_access=');
+    expect(cookies).toContain('devtrack_refresh=');
 
     const refreshed = await request(app.getHttpServer())
       .post('/api/v1/auth/refresh')
-      .send({ refreshToken })
+      .set('Cookie', cookies)
       .expect(200);
 
-    expect(refreshed.body.accessToken).toBeTruthy();
-    expect(refreshed.body.refreshToken).toBeTruthy();
-    expect(refreshed.body.refreshToken).not.toBe(refreshToken);
-
-    const token = refreshed.body.accessToken as string;
+    expect(refreshed.body.ok).toBe(true);
+    cookies = cookieHeader(refreshed.headers['set-cookie']) || cookies;
 
     const projectRes = await request(app.getHttpServer())
       .post('/api/v1/projects')
-      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', cookies)
       .send({ name: 'E2E Project', description: 'From integration test' })
       .expect(201);
 
@@ -69,7 +78,7 @@ describe('DevTrack API (e2e)', () => {
 
     const taskRes = await request(app.getHttpServer())
       .post(`/api/v1/projects/${projectId}/tasks`)
-      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', cookies)
       .send({ title: 'E2E Task', priority: 'HIGH' })
       .expect(201);
 
@@ -77,25 +86,27 @@ describe('DevTrack API (e2e)', () => {
 
     const goalRes = await request(app.getHttpServer())
       .post('/api/v1/goals')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ title: 'E2E Goal', status: 'ACTIVE' })
+      .set('Cookie', cookies)
+      .send({ title: 'E2E Goal', status: 'ACTIVE', projectId })
       .expect(201);
 
     expect(goalRes.body.title).toBe('E2E Goal');
+    expect(goalRes.body.projectId).toBe(projectId);
+    expect(goalRes.body.project.name).toBe('E2E Project');
 
     await request(app.getHttpServer())
       .delete(`/api/v1/goals/${goalRes.body.id}`)
-      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', cookies)
       .expect(204);
 
     await request(app.getHttpServer())
       .delete(`/api/v1/projects/${projectId}/tasks/${taskRes.body.id}`)
-      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', cookies)
       .expect(204);
 
     await request(app.getHttpServer())
       .delete(`/api/v1/projects/${projectId}`)
-      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', cookies)
       .expect(204);
   });
 
