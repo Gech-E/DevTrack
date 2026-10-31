@@ -2,7 +2,7 @@
 
 # Build order matters: @devtrack/shared must be compiled before the API or web app can build.
 
-FROM node:22-alpine AS base
+FROM node:25-alpine AS base
 # Prisma's query engine needs OpenSSL on Alpine.
 RUN apk add --no-cache openssl \
   && corepack enable \
@@ -28,7 +28,7 @@ RUN pnpm --filter @devtrack/shared build \
 # ---- API runtime -------------------------------------------------------------------------------
 # No pnpm/corepack at runtime (it would try to download itself as the unprivileged user);
 # binaries are invoked straight from node_modules/.bin.
-FROM node:22-alpine AS api
+FROM node:25-alpine AS api
 RUN apk add --no-cache openssl
 WORKDIR /app
 ENV NODE_ENV=production
@@ -54,7 +54,7 @@ COPY apps/web ./apps/web
 RUN pnpm --filter @devtrack/shared build && pnpm --filter @devtrack/web build
 
 # ---- Web runtime -------------------------------------------------------------------------------
-FROM node:22-alpine AS web
+FROM node:25-alpine AS web
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=web-build --chown=node:node /app /app
