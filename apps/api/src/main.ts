@@ -19,7 +19,7 @@ function resolveCorsOrigins(raw: string | undefined): string[] {
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
-  const port = config.get<number>('API_PORT', 3001);
+  const port = Number(process.env.PORT ?? config.get<number>('API_PORT', 3001));
 
   app.use(cookieParser());
 
@@ -41,7 +41,7 @@ async function bootstrap(): Promise<void> {
   });
 
   await app.listen(port);
-  console.log(`DevTrack API listening on http://localhost:${port}`);
+  console.log(`DevTrack API listening on port ${port}`);
 }
 
 void bootstrap();
