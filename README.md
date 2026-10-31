@@ -72,16 +72,24 @@ Env: `JWT_SECRET`, `CORS_ORIGINS`, `NEXT_PUBLIC_API_URL`
 4. Deploy using the root `Dockerfile` **api** target (or `railway.toml`).
 5. Health check: `/health`
 
-### Vercel (Web)
+### Vercel (Web + API Services)
 
-1. Import the repo in Vercel; set root to monorepo.
-2. Use `apps/web/vercel.json` (or Framework Preset Next.js with install/build commands below).
-3. Env: `NEXT_PUBLIC_API_URL=https://your-api.up.railway.app`
-4. Build: `pnpm --filter @devtrack/shared build && pnpm --filter @devtrack/web build`
+This repository includes a root `vercel.json` that defines two services in **one Vercel project**:
 
-Install command: `pnpm install --frozen-lockfile`
+- `web` (Next.js) serves the site at `/`.
+- `api` (NestJS) serves `/api/v1/*` and `/health` on the same origin.
 
-After deploy, add the Vercel origin to API `CORS_ORIGINS` and use `SameSite=None; Secure` cookies (enabled when `NODE_ENV=production`).
+The frontend calls the API through relative same-origin paths in production. There are **no internal service bindings**: the current application sends API calls from the browser, not from Next.js server functions. If a server-side service call is added later, declare a service binding on the caller, and use its injected URL only at runtime.
+
+1. Import this repository into Vercel and choose the repository root (`.`) as the project's root directory. Keep one Vercel project for both services.
+2. In the Vercel project settings, set `DATABASE_URL` (an external production PostgreSQL connection string) and a strong `JWT_SECRET`. Never commit secrets.
+3. Do not set `NEXT_PUBLIC_API_URL` in production; the browser uses the same-origin `/api/v1` paths by default. Local development still defaults to `http://localhost:3001`.
+4. Run `pnpm --filter @devtrack/api prisma:deploy` once against the production database as a controlled migration step before enabling application traffic. Avoid automatically applying migrations from each deployment instance.
+5. Deploy a preview, test `/health`, registration/login, project creation, refresh/logout cookies and authenticated API calls; then promote after reviewing the deployment.
+
+Build commands for each service are declared in the root `vercel.json` and compile the shared workspace package. NestJS uses `apps/api/src/app.ts` as a Vercel-recognizable entrypoint and respects Vercel's `PORT` variable.
+
+Run `vercel dev` from the repository root to test routing locally. The existing Docker Compose, Railway and local development configurations remain available.
 
 ## Tests
 
