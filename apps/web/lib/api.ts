@@ -9,7 +9,7 @@ import type {
   TaskStatus,
 } from '@devtrack/shared';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001');
 
 export class ApiError extends Error {
   constructor(
