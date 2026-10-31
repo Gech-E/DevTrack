@@ -103,6 +103,10 @@ export class AuthService {
   }
 
   async refresh(dto: RefreshTokenDto): Promise<TokenPair> {
+    if (!dto.refreshToken) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
     const tokenHash = this.hashToken(dto.refreshToken);
     const stored = await this.prisma.refreshToken.findUnique({
       where: { tokenHash },
@@ -139,6 +143,9 @@ export class AuthService {
   }
 
   async logout(dto: RefreshTokenDto): Promise<void> {
+    if (!dto.refreshToken) {
+      return;
+    }
     await this.prisma.refreshToken.updateMany({
       where: { tokenHash: this.hashToken(dto.refreshToken), revokedAt: null },
       data: { revokedAt: new Date() },

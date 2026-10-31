@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import cookieParser from 'cookie-parser';
 
 import { AppModule } from './app.module';
 import { configureApp } from './app.setup';
@@ -14,6 +15,7 @@ async function bootstrap(): Promise<void> {
     // them and exit with status 1, instead of Nest calling process.abort().
     abortOnError: false,
   });
+  app.use(cookieParser());
 
   configureApp(app);
 

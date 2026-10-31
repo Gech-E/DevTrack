@@ -1,7 +1,20 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  Res,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { Request, Response } from 'express';
 
 import { Public } from '../common/public.decorator';
 import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
+import { clearAuthCookies, REFRESH_COOKIE, setAuthCookies } from './auth-cookies';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -15,37 +28,73 @@ import type { AuthenticatedUser } from './strategies/jwt.strategy';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly config: ConfigService,
+  ) {}
 
   @Public()
   @RateLimit('auth')
   @Post('register')
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.register(dto);
+    setAuthCookies(res, this.config, {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    });
+    return result;
   }
 
   @Public()
   @RateLimit('auth')
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.login(dto);
+    setAuthCookies(res, this.config, {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    });
+    return result;
   }
 
   @Public()
   @RateLimit('auth')
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  refresh(@Body() dto: RefreshTokenDto) {
-    return this.authService.refresh(dto);
+  async refresh(
+    @Req() req: Request,
+    @Body() dto: RefreshTokenDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken =
+      dto.refreshToken ||
+      (typeof req.cookies?.[REFRESH_COOKIE] === 'string' ? req.cookies[REFRESH_COOKIE] : undefined);
+
+    const tokens = await this.authService.refresh({
+      refreshToken: refreshToken ?? '',
+    });
+    setAuthCookies(res, this.config, tokens);
+    return { ok: true };
   }
 
   @Public()
   @RateLimit('auth')
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async logout(@Body() dto: RefreshTokenDto) {
-    await this.authService.logout(dto);
+  async logout(
+    @Req() req: Request,
+    @Body() dto: RefreshTokenDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken =
+      dto.refreshToken ||
+      (typeof req.cookies?.[REFRESH_COOKIE] === 'string' ? req.cookies[REFRESH_COOKIE] : undefined);
+
+    if (refreshToken) {
+      await this.authService.logout({ refreshToken });
+    }
+    clearAuthCookies(res, this.config);
   }
 
   @Public()

@@ -19,4 +19,8 @@ export class CreateLearningGoalDto {
   @IsOptional()
   @IsISO8601({ strict: true })
   targetDate?: string;
+
+  @IsOptional()
+  @IsString()
+  projectId?: string | null;
 }

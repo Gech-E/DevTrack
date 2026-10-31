@@ -54,10 +54,29 @@ select option {
   background: #e7f2f6;
 }
 
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  backdrop-filter: blur(10px);
+}
+
+.hero-glow {
+  pointer-events: none;
+  position: absolute;
+  inset: -20% auto auto -10%;
+  width: min(70vw, 720px);
+  height: min(70vw, 720px);
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(43, 183, 169, 0.28), transparent 68%);
+  filter: blur(8px);
+  animation: pulse-glow 8s ease-in-out infinite;
+}
+
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -65,6 +84,18 @@ select option {
   }
 }
 
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
 .animate-fade-up {
-  animation: fade-up 0.45s ease-out both;
+  animation: fade-up 0.5s ease-out both;
 }

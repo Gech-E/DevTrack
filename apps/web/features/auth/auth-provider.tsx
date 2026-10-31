@@ -4,7 +4,6 @@ import * as React from 'react';
 import type { AuthUser } from '@devtrack/shared';
 
 import { api, ApiError } from '@/lib/api';
-import { clearTokens, getAccessToken, getRefreshToken, setTokens } from '@/lib/auth-storage';
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -21,44 +20,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    const token = getAccessToken();
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
     api
       .me()
       .then(setUser)
-      .catch(() => {
-        clearTokens();
-        setUser(null);
-      })
+      .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
 
   const login = React.useCallback(async (email: string, password: string) => {
     const result = await api.login({ email, password });
-    setTokens(result.accessToken, result.refreshToken);
     setUser(result.user);
   }, []);
 
   const register = React.useCallback(async (name: string, email: string, password: string) => {
     const result = await api.register({ name, email, password });
-    setTokens(result.accessToken, result.refreshToken);
     setUser(result.user);
   }, []);
 
   const logout = React.useCallback(async () => {
-    const refreshToken = getRefreshToken();
-    if (refreshToken) {
-      try {
-        await api.logout(refreshToken);
-      } catch {
-        // Local logout still proceeds if revoke fails.
-      }
+    try {
+      await api.logout();
+    } catch {
+      // Local session still cleared if revoke fails.
     }
-    clearTokens();
     setUser(null);
   }, []);
 

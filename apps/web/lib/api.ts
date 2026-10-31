@@ -4,13 +4,10 @@ import type {
   LearningGoal,
   LearningGoalStatus,
   Project,
-  RefreshResponse,
   Task,
   TaskPriority,
   TaskStatus,
 } from '@devtrack/shared';
-
-import { clearTokens, getAccessToken, getRefreshToken, setTokens } from './auth-storage';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
@@ -34,31 +31,15 @@ type RequestOptions = {
 let refreshPromise: Promise<boolean> | null = null;
 
 async function tryRefresh(): Promise<boolean> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) {
-    return false;
-  }
-
   try {
     const response = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
       method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ refreshToken }),
+      headers: { Accept: 'application/json' },
+      credentials: 'include',
     });
 
-    if (!response.ok) {
-      clearTokens();
-      return false;
-    }
-
-    const payload = (await response.json()) as RefreshResponse;
-    setTokens(payload.accessToken, payload.refreshToken);
-    return true;
+    return response.ok;
   } catch {
-    clearTokens();
     return false;
   }
 }
@@ -72,17 +53,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     headers['Content-Type'] = 'application/json';
   }
 
-  if (options.auth !== false) {
-    const token = getAccessToken();
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-  }
-
   const response = await fetch(`${API_BASE}/api/v1${path}`, {
     method: options.method ?? 'GET',
     headers,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    credentials: 'include',
   });
 
   if (
@@ -109,10 +84,6 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   } | null;
 
   if (!response.ok) {
-    if (response.status === 401 && options.auth !== false) {
-      clearTokens();
-    }
-
     const message = Array.isArray(payload?.message)
       ? payload.message.join(', ')
       : (payload?.message ?? `Request failed (${response.status})`);
@@ -165,6 +136,7 @@ export type CreateGoalInput = {
   description?: string;
   status?: LearningGoalStatus;
   targetDate?: string;
+  projectId?: string | null;
 };
 
 export type UpdateGoalInput = {
@@ -172,6 +144,7 @@ export type UpdateGoalInput = {
   description?: string | null;
   status?: LearningGoalStatus;
   targetDate?: string | null;
+  projectId?: string | null;
 };
 
 export const api = {
@@ -179,18 +152,8 @@ export const api = {
     request<AuthResponse>('/auth/register', { method: 'POST', body: input, auth: false }),
   login: (input: LoginInput) =>
     request<AuthResponse>('/auth/login', { method: 'POST', body: input, auth: false }),
-  refresh: (refreshToken: string) =>
-    request<RefreshResponse>('/auth/refresh', {
-      method: 'POST',
-      body: { refreshToken },
-      auth: false,
-    }),
-  logout: (refreshToken: string) =>
-    request<void>('/auth/logout', {
-      method: 'POST',
-      body: { refreshToken },
-      auth: false,
-    }),
+  refresh: () => request<{ ok: true }>('/auth/refresh', { method: 'POST', auth: false }),
+  logout: () => request<void>('/auth/logout', { method: 'POST', auth: false }),
   me: () => request<AuthUser>('/auth/me'),
   listProjects: () => request<Project[]>('/projects'),
   getProject: (id: string) => request<Project>(`/projects/${id}`),

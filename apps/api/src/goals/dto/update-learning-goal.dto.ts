@@ -21,4 +21,8 @@ export class UpdateLearningGoalDto {
   @IsOptional()
   @IsISO8601({ strict: true })
   targetDate?: string | null;
+
+  @IsOptional()
+  @IsString()
+  projectId?: string | null;
 }

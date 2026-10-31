@@ -76,6 +76,7 @@ async function main(): Promise<void> {
     await prisma.learningGoal.create({
       data: {
         userId: user.id,
+        projectId: project.id,
         title: 'Ship a full-stack portfolio app',
         description: 'DevTrack end-to-end: API, UI, tests, and deploy.',
         status: LearningGoalStatus.ACTIVE,
