@@ -76,8 +76,36 @@ describe('TasksService', () => {
     expect(prisma.task.findMany).toHaveBeenCalledWith({
       where: { projectId: 'proj_1' },
       orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
+      take: 100,
+      skip: 0,
     });
     expect(result).toEqual([task]);
+  });
+
+  it('applies status filter and pagination to the list query', async () => {
+    prisma.task.findMany.mockResolvedValue([]);
+
+    await service.listForProject('user_1', 'proj_1', {
+      status: TaskStatus.DONE,
+      limit: 25,
+      offset: 50,
+    });
+
+    expect(prisma.task.findMany).toHaveBeenCalledWith({
+      where: { projectId: 'proj_1', status: TaskStatus.DONE },
+      orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
+      take: 25,
+      skip: 50,
+    });
+  });
+
+  it('does not list tasks of a project the user does not own', async () => {
+    projectsService.getForUser.mockRejectedValue(new NotFoundException('Project not found'));
+
+    await expect(service.listForProject('user_1', 'proj_other')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(prisma.task.findMany).not.toHaveBeenCalled();
   });
 
   it('creates a task in an owned project', async () => {
@@ -117,6 +145,26 @@ describe('TasksService', () => {
     await expect(service.getForProject('user_1', 'proj_1', 'task_other')).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  it('proves ownership of a task with a single query scoped to the user', async () => {
+    prisma.task.findFirst.mockResolvedValue(task);
+
+    await service.getForProject('user_1', 'proj_1', 'task_1');
+
+    expect(prisma.task.findFirst).toHaveBeenCalledWith({
+      where: { id: 'task_1', projectId: 'proj_1', project: { userId: 'user_1' } },
+    });
+    expect(projectsService.getForUser).not.toHaveBeenCalled();
+  });
+
+  it('refuses to update a task owned by another user', async () => {
+    prisma.task.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.updateForProject('user_2', 'proj_1', 'task_1', { title: 'Hijack' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.task.update).not.toHaveBeenCalled();
   });
 
   it('updates task status on an owned project', async () => {

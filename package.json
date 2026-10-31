@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@9.15.0",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "dev:web": "pnpm --filter @devtrack/shared build && pnpm --filter @devtrack/web dev",
@@ -23,7 +23,8 @@
     "db:seed": "pnpm --filter @devtrack/api prisma:seed",
     "db:studio": "pnpm --filter @devtrack/api prisma:studio",
     "deploy:up": "docker compose --profile app up --build -d",
-    "deploy:down": "docker compose --profile app down"
+    "deploy:down": "docker compose --profile app down",
+    "test:coverage": "pnpm --filter @devtrack/api test:cov && pnpm --filter @devtrack/web test:cov"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

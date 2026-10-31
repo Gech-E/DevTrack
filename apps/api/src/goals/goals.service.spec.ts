@@ -63,6 +63,8 @@ describe('GoalsService', () => {
       where: { userId: 'user_1' },
       include: { project: { select: { id: true, name: true } } },
       orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
+      take: 100,
+      skip: 0,
     });
     expect(result).toEqual([goal]);
   });

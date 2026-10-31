@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEnum, IsISO8601, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { LearningGoalStatus } from '@devtrack/shared';
 
 export class CreateLearningGoalDto {
@@ -17,7 +17,7 @@ export class CreateLearningGoalDto {
   status?: LearningGoalStatus;
 
   @IsOptional()
-  @IsString()
+  @IsISO8601({ strict: true })
   targetDate?: string;
 
   @IsOptional()

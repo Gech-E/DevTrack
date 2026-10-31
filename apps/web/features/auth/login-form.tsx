@@ -71,9 +71,6 @@ export function LoginForm() {
           Register
         </Link>
       </p>
-      <p className="mt-2 text-xs text-[var(--muted)]">
-        Local demo: demo@devtrack.local / password123
-      </p>
     </Card>
   );
 }

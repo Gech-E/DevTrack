@@ -5,9 +5,17 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     services:
       postgres:
@@ -30,6 +38,10 @@ jobs:
       API_PORT: 3001
       NEXT_PUBLIC_API_URL: http://localhost:3001
       CORS_ORIGINS: http://localhost:3000
+      # Parallel browser tests log in repeatedly from one IP; keep the limiter out of the way.
+      RATE_LIMIT_AUTH_MAX: 1000
+      RATE_LIMIT_SENSITIVE_MAX: 1000
+      RATE_LIMIT_GLOBAL_MAX: 100000
 
     steps:
       - uses: actions/checkout@v4
@@ -40,11 +52,14 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Check formatting
+        run: pnpm format:check
 
       - name: Generate Prisma client
         run: pnpm --filter @devtrack/api exec prisma generate
@@ -67,30 +82,136 @@ jobs:
           EOF
 
       - name: Lint
-        run: pnpm lint
+        run: scripts/ci-run.sh lint pnpm lint
 
       - name: Typecheck
-        run: pnpm typecheck
+        run: scripts/ci-run.sh typecheck pnpm typecheck
 
       - name: Unit tests
-        run: pnpm test
+        run: scripts/ci-run.sh "unit tests" pnpm test:coverage
 
       - name: API e2e tests
-        run: pnpm test:e2e:api
-        env:
-          DATABASE_URL: postgresql://devtrack:devtrack@localhost:5432/devtrack?schema=public
-          JWT_SECRET: ci-test-secret
+        run: scripts/ci-run.sh "api e2e" pnpm test:e2e:api
 
       - name: Build apps
-        run: pnpm build
+        run: scripts/ci-run.sh build pnpm build
 
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Playwright e2e
-        run: pnpm test:e2e
+      - name: Playwright e2e (against built artifacts)
+        run: scripts/ci-run.sh "playwright e2e" pnpm test:e2e
         env:
-          DATABASE_URL: postgresql://devtrack:devtrack@localhost:5432/devtrack?schema=public
-          JWT_SECRET: ci-test-secret
-          NEXT_PUBLIC_API_URL: http://localhost:3001
           CI: true
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: devtrack
+          POSTGRES_PASSWORD: devtrack
+          POSTGRES_DB: devtrack
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U devtrack -d devtrack"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build API image
+        run: docker build --target api -t devtrack-api:ci .
+
+      - name: Build web image
+        run: |
+          docker build --target web \
+            --build-arg NEXT_PUBLIC_API_URL=https://api.ci.example \
+            -t devtrack-web:ci .
+
+      - name: Web build fails without NEXT_PUBLIC_API_URL
+        run: |
+          if docker build --target web-build -t devtrack-web-nourl:ci . >/tmp/web-nourl.log 2>&1; then
+            echo "Expected the web build to fail without NEXT_PUBLIC_API_URL"; exit 1
+          fi
+          grep -q "NEXT_PUBLIC_API_URL must be set" /tmp/web-nourl.log
+
+      - name: API refuses to boot in production with a default secret
+        run: |
+          if docker run --rm --network host \
+            -e DATABASE_URL='postgresql://devtrack:devtrack@localhost:5432/devtrack?schema=public' \
+            -e JWT_SECRET='change-me-in-development-only' \
+            -e CORS_ORIGINS='https://app.ci.example' \
+            -e WEB_APP_URL='https://app.ci.example' \
+            --entrypoint node devtrack-api:ci dist/main.js >/tmp/weak.log 2>&1; then
+            echo "The API started with a default JWT_SECRET in production" >&2
+            exit 1
+          fi
+          cat /tmp/weak.log
+          grep -q "JWT_SECRET" /tmp/weak.log
+
+      - name: Smoke test the API container
+        run: |
+          secret="$(openssl rand -base64 48)"
+          docker run -d --name api --network host \
+            -e DATABASE_URL='postgresql://devtrack:devtrack@localhost:5432/devtrack?schema=public' \
+            -e JWT_SECRET="$secret" \
+            -e CORS_ORIGINS='https://app.ci.example' \
+            -e WEB_APP_URL='https://app.ci.example' \
+            devtrack-api:ci
+          for attempt in $(seq 1 40); do
+            if curl -fsS http://localhost:3001/health/ready >/dev/null 2>&1; then break; fi
+            sleep 2
+          done
+          curl -fsS http://localhost:3001/health/ready
+          echo
+          curl -fsSI http://localhost:3001/health/live | grep -i "strict-transport-security"
+          test "$(docker exec api id -u)" != "0"
+          docker logs api | tail -20
+
+      - name: Surface logs on failure
+        if: ${{ failure() }}
+        run: |
+          scripts/ci-annotate.sh error "weak-secret check" /tmp/weak.log
+          scripts/ci-annotate.sh error "web build without API URL" /tmp/web-nourl.log
+          if docker ps -a --format '{{.Names}}' | grep -qx api; then
+            docker logs api >/tmp/api-container.log 2>&1 || true
+            scripts/ci-annotate.sh error "api container" /tmp/api-container.log
+          fi
+
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Advisory: a newly published CVE should be visible without blocking unrelated work.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Audit production dependencies
+        run: |
+          if ! pnpm audit --prod --audit-level=high >/tmp/audit.log 2>&1; then
+            scripts/ci-annotate.sh warning "pnpm audit" /tmp/audit.log
+            exit 1
+          fi

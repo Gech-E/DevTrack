@@ -6,6 +6,7 @@ import type { Request } from 'express';
 
 import { ACCESS_COOKIE } from '../auth-cookies';
 import type { JwtPayload } from '../auth.service';
+import { DEFAULT_JWT_AUDIENCE, DEFAULT_JWT_ISSUER, JWT_ALGORITHM } from '../auth.constants';
 
 export type AuthenticatedUser = {
   userId: string;
@@ -27,6 +28,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: fromCookieOrBearer,
       ignoreExpiration: false,
       secretOrKey: config.getOrThrow<string>('JWT_SECRET'),
+      // Pin the algorithm so a token cannot downgrade verification (for example to "none").
+      algorithms: [JWT_ALGORITHM],
+      issuer: config.get<string>('JWT_ISSUER', DEFAULT_JWT_ISSUER),
+      audience: config.get<string>('JWT_AUDIENCE', DEFAULT_JWT_AUDIENCE),
     });
   }
 

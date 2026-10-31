@@ -1,47 +1,31 @@
-import { ValidationPipe } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 
 import { AppModule } from './app.module';
-
-function resolveCorsOrigins(raw: string | undefined): string[] {
-  const fallback = ['http://localhost:3000', 'http://localhost:3101'];
-  if (!raw?.trim()) {
-    return fallback;
-  }
-  return raw
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-}
+import { configureApp } from './app.setup';
+import { JsonLogger } from './common/logging/json-logger';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
-  const config = app.get(ConfigService);
-  const port = config.get<number>('API_PORT', 3001);
-
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    logger: process.env.NODE_ENV === 'production' ? new JsonLogger() : undefined,
+    // Let startup failures (such as invalid configuration) reject so the catch below can print
+    // them and exit with status 1, instead of Nest calling process.abort().
+    abortOnError: false,
+  });
   app.use(cookieParser());
 
-  app.setGlobalPrefix('api/v1', {
-    exclude: ['health'],
-  });
+  configureApp(app);
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
-
-  app.enableCors({
-    origin: resolveCorsOrigins(config.get<string>('CORS_ORIGINS')),
-    credentials: true,
-  });
-
+  const port = app.get(ConfigService).get<number>('API_PORT', 3001);
   await app.listen(port);
-  console.log(`DevTrack API listening on http://localhost:${port}`);
+  new Logger('Bootstrap').log(`DevTrack API listening on port ${port}`);
 }
 
-void bootstrap();
+bootstrap().catch((error: unknown) => {
+  // Invalid configuration lands here; print it plainly and exit non-zero so the platform restarts/alerts.
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});

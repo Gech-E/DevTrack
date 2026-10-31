@@ -9,15 +9,16 @@ datasource db {
 
 /// Application user. Access JWTs are short-lived; refresh tokens are stored hashed.
 model User {
-  id            String         @id @default(cuid())
-  email         String         @unique
-  passwordHash  String
-  name          String
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  projects      Project[]
-  refreshTokens RefreshToken[]
-  learningGoals LearningGoal[]
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  passwordHash        String
+  name                String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  projects            Project[]
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  learningGoals       LearningGoal[]
 
   @@map("users")
 }
@@ -33,6 +34,20 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+/// Single-use password reset link. Only the SHA-256 of the emailed token is stored.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 model Project {
@@ -62,8 +77,10 @@ model Task {
   updatedAt   DateTime     @updatedAt
   project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  @@index([projectId])
-  @@index([status])
+  /// Matches the list query: filter by project, group by status, newest first.
+  @@index([projectId, status, updatedAt])
+  /// Supports due-date lookups within a project (overdue / today views).
+  @@index([projectId, dueDate])
   @@map("tasks")
 }
 
