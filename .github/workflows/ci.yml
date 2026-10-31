@@ -44,7 +44,7 @@ jobs:
       RATE_LIMIT_GLOBAL_MAX: 100000
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v4
         with:
@@ -135,7 +135,7 @@ jobs:
           --health-retries 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build API image
         run: docker build --target api -t devtrack-api:ci .
@@ -202,7 +202,7 @@ jobs:
     # Advisory: a newly published CVE should be visible without blocking unrelated work.
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with:
           version: 9.15.0
